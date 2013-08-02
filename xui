@@ -5,6 +5,8 @@
 
 import xmmsclient
 import os
+import urwid
+import urwid.raw_display
 
 
 class XmmsError(Exception):
@@ -12,8 +14,14 @@ class XmmsError(Exception):
         Exception.__init__(msg)
 
 
-class Xui(object):
+class Client(object):
+    """
+    XMMS client wrapper
+    """
     def __init__(self):
+        self.xmms = None
+
+    def connect(self):
         self.xmms = xmmsclient.XMMS("xui")
         try:
             self.xmms.connect(os.getenv("XMMS_PATH"))
@@ -33,16 +41,72 @@ class Xui(object):
     def medialib_info(self, track):
         return self._syncwrap(self.xmms.medialib_get_info(track))
 
+    def ls(self):
+        return self._syncwrap(self.xmms.playlist_list_entries())
+
+
+class Xui(object):
+    """
+    Curses UI to the XMMS client
+    """
+    def __init__(self, client):
+        self.client = client
+
+    def unhandled(self, key):
+        if key == 'esc' or key == 'q':
+            raise urwid.ExitMainLoop()
+
+    def build_ui(self):
+        self.listbox_content = []
+
+        playlist = self.client.ls()
+        for item in playlist:
+            info = self.client.medialib_info(item)
+            self.listbox_content.append(urwid.Text(u'%s - %s' % (info.get('artist', ''),
+                                                                 info.get('title', '')),
+                                                   align='left'))
+
+        self.header = urwid.AttrWrap(urwid.Text(u"now playing:"), 'header')
+        self.listbox = urwid.ListBox(urwid.SimpleListWalker(self.listbox_content))
+        self.frame = urwid.Frame(urwid.AttrWrap(self.listbox, 'body'), header=self.header)
+        self.palette = [
+            ('body', 'light gray', 'black', 'standout'),
+            ('reverse', 'black', 'light gray'),
+            ('header', 'white', 'dark gray', 'bold'),
+            ('important', 'dark blue', 'light gray', ('standout', 'underline')),
+            ('editfc', 'white', 'dark blue', 'bold'),
+            ('editbx', 'light gray', 'dark blue'),
+            ('editcp', 'black', 'light gray', 'standout'),
+            ('bright', 'dark gray', 'light gray', ('bold', 'standout')),
+            ('buttn', 'black', 'dark cyan'),
+            ('buttnf', 'white', 'dark blue', 'bold'),
+        ]
+        self.screen = urwid.raw_display.Screen()
+
+    def display(self):
+        print "connecting..."
+        self.build_ui()
+
+        loop = urwid.MainLoop(self.frame,
+                              self.palette,
+                              self.screen,
+                              unhandled_input=self.unhandled)
+        loop.run()
+
 
 def main():
-    xui = Xui()
+    client = Client()
+    client.connect()
 
-    now_playing = xui.current()
-    if now_playing == 0:
-        print "(nothing playing)"
-        return
-    info = xui.medialib_info(now_playing)
-    print "%s - %s" % (info.get('artist', ''), info.get('title', ''))
+    xui = Xui(client)
+    xui.display()
+
+    #now_playing = xui.current()
+    #if now_playing == 0:
+    #    print "(nothing playing)"
+    #    return
+    #info = xui.medialib_info(now_playing)
+    #print "%s - %s" % (info.get('artist', ''), info.get('title', ''))
 
 
 if __name__ == "__main__":
