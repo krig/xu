@@ -1,0 +1,49 @@
+#!/usr/bin/env python
+#
+# xui
+
+
+import xmmsclient
+import os
+
+
+class XmmsError(Exception):
+    def __init__(self, msg):
+        Exception.__init__(msg)
+
+
+class Xui(object):
+    def __init__(self):
+        self.xmms = xmmsclient.XMMS("xui")
+        try:
+            self.xmms.connect(os.getenv("XMMS_PATH"))
+        except IOError, e:
+            print e
+            raise XmmsError("Cannot connect")
+
+    def _syncwrap(self, r):
+        r.wait()
+        if r.iserror():
+            raise XmmsError(r.get_error())
+        return r.value()
+
+    def current(self):
+        return self._syncwrap(self.xmms.playback_current_id())
+
+    def medialib_info(self, track):
+        return self._syncwrap(self.xmms.medialib_get_info(track))
+
+
+def main():
+    xui = Xui()
+
+    now_playing = xui.current()
+    if now_playing == 0:
+        print "(nothing playing)"
+        return
+    info = xui.medialib_info(now_playing)
+    print "%s - %s" % (info.get('artist', ''), info.get('title', ''))
+
+
+if __name__ == "__main__":
+    main()
