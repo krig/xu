@@ -4,6 +4,7 @@
 
 
 import xmmsclient
+import sys
 import os
 import urwid
 import urwid.raw_display
@@ -11,7 +12,7 @@ import urwid.raw_display
 
 class XmmsError(Exception):
     def __init__(self, msg):
-        Exception.__init__(msg)
+        Exception.__init__(self, msg)
 
 
 class Client(object):
@@ -26,53 +27,49 @@ class Client(object):
         try:
             self.xmms.connect(os.getenv("XMMS_PATH"))
         except IOError, e:
-            print e
-            raise XmmsError("Cannot connect")
+            raise XmmsError(e)
 
-    def _syncwrap(self, r):
+    def _sync(self, r):
         r.wait()
         if r.iserror():
             raise XmmsError(r.get_error())
         return r.value()
 
     def current(self):
-        return self._syncwrap(self.xmms.playback_current_id())
+        return self._sync(self.xmms.playback_current_id())
 
     def medialib_info(self, track):
-        return self._syncwrap(self.xmms.medialib_get_info(track))
+        return self._sync(self.xmms.medialib_get_info(track))
 
     def ls(self):
-        return self._syncwrap(self.xmms.playlist_list_entries())
+        return self._sync(self.xmms.playlist_list_entries())
 
     def play(self):
-        return self._syncwrap(self.xmms.playback_start())
+        return self._sync(self.xmms.playback_start())
 
     def stop(self):
-        return self._syncwrap(self.xmms.playback_stop())
+        return self._sync(self.xmms.playback_stop())
 
     def pause(self):
-        return self._syncwrap(self.xmms.playback_pause())
+        return self._sync(self.xmms.playback_pause())
 
     def tickle(self):
-        return self._syncwrap(self.xmms.playback_tickle())
+        return self._sync(self.xmms.playback_tickle())
 
     def set_next(self, index):
-        return self._syncwrap(self.xmms.playlist_set_next(index))
+        return self._sync(self.xmms.playlist_set_next(index))
 
     def status(self):
-        return self._syncwrap(self.xmms.playback_status())
-
-    def playing(self):
-        status = self._syncwrap(self.xmms.playback_status())
-        return status == 1
-
-    def paused(self):
-        status = self._syncwrap(self.xmms.playback_status())
-        return status == 2
+        return self._sync(self.xmms.playback_status())
 
     def stopped(self):
-        status = self._syncwrap(self.xmms.playback_status())
-        return status == 0
+        return self.status() == 0
+
+    def playing(self):
+        return self.status() == 1
+
+    def paused(self):
+        return self.status() == 2
 
     def playing_info(self):
         if self.playing():
@@ -82,7 +79,7 @@ class Client(object):
             return u"not playing."
 
     def entry_info(self, name, pos):
-        lst = self._syncwrap(self.xmms.playlist_list_entries(name))
+        lst = self._sync(self.xmms.playlist_list_entries(name))
         return self.medialib_info(lst[pos])
 
     def jump(self, trackid):
@@ -132,40 +129,29 @@ class Xui(object):
                                  info.get('title', ''))
             btn = urwid.Button(desc)
             urwid.connect_signal(btn, 'click', self.on_click, [item, info])
-            self.listbox_content.append(urwid.AttrMap(btn, None, focus_map='reverse'))
+            self.listbox_content.append(urwid.AttrMap(btn, None, focus_map='focus'))
 
         self.header = urwid.AttrWrap(urwid.Text(self.client.playing_info()), 'header')
         self.listbox = urwid.ListBox(urwid.SimpleListWalker(self.listbox_content))
         self.frame = urwid.Frame(urwid.AttrWrap(self.listbox, 'body'), header=self.header)
         self.palette = [
             ('body', 'light gray', 'black', 'standout'),
-            ('reverse', 'black', 'light gray'),
-            ('header', 'white', 'dark gray', 'bold'),
-            ('important', 'dark blue', 'light gray', ('standout', 'underline')),
-            ('editfc', 'white', 'dark blue', 'bold'),
-            ('editbx', 'light gray', 'dark blue'),
-            ('editcp', 'black', 'light gray', 'standout'),
-            ('bright', 'dark gray', 'light gray', ('bold', 'standout')),
-            ('buttn', 'black', 'dark cyan'),
-            ('buttnf', 'white', 'dark blue', 'bold'),
+            ('focus', 'white', 'dark red'),
+            ('header', 'light gray', 'dark gray', 'bold')
         ]
         self.screen = urwid.raw_display.Screen()
 
         self.client.set_on_pos_changed(self.on_pos_changed)
 
     def on_click(self, btn, choice):
-        # jump to song
         song_id = choice[0]
         self.client.jump(song_id)
         if not self.client.playing():
             self.client.play()
         self.client.tickle()
-        #self.header.set_text(self.client.playing_info())
 
     def display(self):
-        print "connecting..."
         self.build_ui()
-
         loop = urwid.MainLoop(self.frame,
                               self.palette,
                               self.screen,
@@ -174,11 +160,15 @@ class Xui(object):
 
 
 def main():
-    client = Client()
-    client.connect()
+    try:
+        client = Client()
+        client.connect()
 
-    xui = Xui(client)
-    xui.display()
+        xui = Xui(client)
+        xui.display()
+    except XmmsError, e:
+        print >> sys.stderr, "Error: %s" % (e)
+        sys.exit(1)
 
     #now_playing = xui.current()
     #if now_playing == 0:
