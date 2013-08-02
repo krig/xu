@@ -59,9 +59,20 @@ class Client(object):
     def set_next(self, index):
         return self._syncwrap(self.xmms.playlist_set_next(index))
 
+    def status(self):
+        return self._syncwrap(self.xmms.playback_status())
+
     def playing(self):
         status = self._syncwrap(self.xmms.playback_status())
-        return status != 0
+        return status == 1
+
+    def paused(self):
+        status = self._syncwrap(self.xmms.playback_status())
+        return status == 2
+
+    def stopped(self):
+        status = self._syncwrap(self.xmms.playback_status())
+        return status == 0
 
     def playing_info(self):
         if self.playing():
@@ -70,12 +81,19 @@ class Client(object):
         else:
             return u"not playing."
 
+    def entry_info(self, name, pos):
+        lst = self._syncwrap(self.xmms.playlist_list_entries(name))
+        return self.medialib_info(lst[pos])
+
     def jump(self, trackid):
         pl = self.ls()
         for n, tid in enumerate(pl):
             if trackid == tid:
                 return self.set_next(n)
         return False
+
+    def set_on_pos_changed(self, cb):
+        self.xmms.broadcast_playlist_current_pos(cb)
 
 
 class Xui(object):
@@ -86,8 +104,23 @@ class Xui(object):
         self.client = client
 
     def unhandled(self, key):
-        if key == 'esc' or key == 'q':
+        if key == 'p':
+            if self.client.playing():
+                self.client.pause()
+            else:
+                self.client.play()
+        elif key == 's':
+            self.client.stop()
+        elif key == 'esc' or key == 'q':
             raise urwid.ExitMainLoop()
+
+    def on_pos_changed(self, v):
+        x = v.value()
+        pos = x[u'position']
+        name = x[u'name']
+        info = self.client.entry_info(name, pos)
+        self.header.set_text(u'Now playing: %s - %s' %
+                             (info.get('artist', ''), info.get('title', '')))
 
     def build_ui(self):
         self.listbox_content = []
@@ -118,14 +151,16 @@ class Xui(object):
         ]
         self.screen = urwid.raw_display.Screen()
 
+        self.client.set_on_pos_changed(self.on_pos_changed)
+
     def on_click(self, btn, choice):
         # jump to song
         song_id = choice[0]
         self.client.jump(song_id)
         if not self.client.playing():
             self.client.play()
-        else:
-            self.client.tickle()
+        self.client.tickle()
+        #self.header.set_text(self.client.playing_info())
 
     def display(self):
         print "connecting..."
