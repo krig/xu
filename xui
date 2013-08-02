@@ -44,6 +44,39 @@ class Client(object):
     def ls(self):
         return self._syncwrap(self.xmms.playlist_list_entries())
 
+    def play(self):
+        return self._syncwrap(self.xmms.playback_start())
+
+    def stop(self):
+        return self._syncwrap(self.xmms.playback_stop())
+
+    def pause(self):
+        return self._syncwrap(self.xmms.playback_pause())
+
+    def tickle(self):
+        return self._syncwrap(self.xmms.playback_tickle())
+
+    def set_next(self, index):
+        return self._syncwrap(self.xmms.playlist_set_next(index))
+
+    def playing(self):
+        status = self._syncwrap(self.xmms.playback_status())
+        return status != 0
+
+    def playing_info(self):
+        if self.playing():
+            info = self.medialib_info(self.current())
+            return u"now playing: %s - %s" % (info.get('artist', ''), info.get('title', ''))
+        else:
+            return u"not playing."
+
+    def jump(self, trackid):
+        pl = self.ls()
+        for n, tid in enumerate(pl):
+            if trackid == tid:
+                return self.set_next(n)
+        return False
+
 
 class Xui(object):
     """
@@ -62,11 +95,13 @@ class Xui(object):
         playlist = self.client.ls()
         for item in playlist:
             info = self.client.medialib_info(item)
-            self.listbox_content.append(urwid.Text(u'%s - %s' % (info.get('artist', ''),
-                                                                 info.get('title', '')),
-                                                   align='left'))
+            desc = u'%s - %s' % (info.get('artist', ''),
+                                 info.get('title', ''))
+            btn = urwid.Button(desc)
+            urwid.connect_signal(btn, 'click', self.on_click, [item, info])
+            self.listbox_content.append(urwid.AttrMap(btn, None, focus_map='reverse'))
 
-        self.header = urwid.AttrWrap(urwid.Text(u"now playing:"), 'header')
+        self.header = urwid.AttrWrap(urwid.Text(self.client.playing_info()), 'header')
         self.listbox = urwid.ListBox(urwid.SimpleListWalker(self.listbox_content))
         self.frame = urwid.Frame(urwid.AttrWrap(self.listbox, 'body'), header=self.header)
         self.palette = [
@@ -82,6 +117,15 @@ class Xui(object):
             ('buttnf', 'white', 'dark blue', 'bold'),
         ]
         self.screen = urwid.raw_display.Screen()
+
+    def on_click(self, btn, choice):
+        # jump to song
+        song_id = choice[0]
+        self.client.jump(song_id)
+        if not self.client.playing():
+            self.client.play()
+        else:
+            self.client.tickle()
 
     def display(self):
         print "connecting..."
