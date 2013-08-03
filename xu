@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# xui
+# xu
 
 
 import xmmsclient
@@ -23,7 +23,7 @@ class Client(object):
         self.xmms = None
 
     def connect(self):
-        self.xmms = xmmsclient.XMMS("xui")
+        self.xmms = xmmsclient.XMMS("xu0")
         try:
             self.xmms.connect(os.getenv("XMMS_PATH"))
         except IOError, e:
