@@ -4,10 +4,19 @@
 
 
 import xmmsclient
+import xmmsclient.glib
 import sys
 import os
 import urwid
 import urwid.raw_display
+import logging as log
+
+from urwid import AttrMap, ListBox, Frame, Text, Padding, WidgetWrap, Columns, SimpleFocusListWalker
+
+PROMPT = u">>"
+
+
+log.basicConfig(filename='xu.log', level=log.DEBUG)
 
 
 class XmmsError(Exception):
@@ -21,6 +30,7 @@ class Client(object):
     """
     def __init__(self):
         self.xmms = None
+        self.conn = None
 
     def connect(self):
         self.xmms = xmmsclient.XMMS("xu0")
@@ -28,6 +38,7 @@ class Client(object):
             self.xmms.connect(os.getenv("XMMS_PATH"))
         except IOError, e:
             raise XmmsError(e)
+        self.conn = xmmsclient.glib.GLibConnector(self.xmms)
 
     def _sync(self, r):
         r.wait()
@@ -74,13 +85,16 @@ class Client(object):
     def playing_info(self):
         if self.playing():
             info = self.medialib_info(self.current())
-            return u"now playing: %s - %s" % (info.get('artist', ''), info.get('title', ''))
+            return u"%s %s - %s" % (PROMPT, info.get('artist', ''), info.get('title', ''))
         else:
-            return u"not playing."
+            return PROMPT
 
     def entry_info(self, name, pos):
         lst = self._sync(self.xmms.playlist_list_entries(name))
         return self.medialib_info(lst[pos])
+
+    def playtime(self):
+        return self._sync(self.xmms.playback_playtime())
 
     def jump(self, trackid):
         pl = self.ls()
@@ -92,6 +106,42 @@ class Client(object):
     def set_on_pos_changed(self, cb):
         self.xmms.broadcast_playlist_current_pos(cb)
 
+    def set_on_playlist_changed(self, cb):
+        self.xmms.broadcast_playlist_changed(cb)
+
+    def set_on_playback_current_id(self, cb):
+        self.xmms.broadcast_playback_current_id(cb)
+
+    def set_on_playback_status(self, cb):
+        self.xmms.broadcast_playback_status(cb)
+
+
+class EntryWidget(WidgetWrap):
+    def __init__(self, id, pln, artist, title):
+        self.id = id
+        self.song_pln = pln
+        self.song_artist = artist
+        self.song_title = title
+        self.content = '%s - %s' % (artist, title)
+        self.item = [
+            ('fixed', 5, Padding(AttrMap(Text(pln, align='right'), 'body', 'focus'), align='right', right=1)),
+            AttrMap(Text(self.content), 'body', 'focus'),
+        ]
+        w = Columns(self.item)
+        super(EntryWidget, self).__init__(w)
+
+    def set_current(self, is_current):
+        if is_current:
+            self.item[1].set_attr_map({None: 'highlight'})
+        else:
+            self.item[1].set_attr_map({None: 'body'})
+
+    def selectable(self):
+        return True
+
+    def keypress(self, size, key):
+        return key
+
 
 class Xui(object):
     """
@@ -99,8 +149,24 @@ class Xui(object):
     """
     def __init__(self, client):
         self.client = client
+        self.loop = None
+        self.rebuilding = False
+        self.progress_enabled = False
+        self.current_id = None
+        self.current_info = None
 
     def unhandled(self, key):
+        if isinstance(key, tuple):
+            if key[0] == 'mouse press':
+                pass
+            elif key[0] == 'mouse release':
+                idx = key[3]
+                self.client.set_next(idx - 1)
+                if not self.client.playing():
+                    self.client.play()
+                self.client.tickle()
+            return
+        key = key.lower()
         if key == 'p':
             if self.client.playing():
                 self.client.pause()
@@ -108,40 +174,69 @@ class Xui(object):
                 self.client.play()
         elif key == 's':
             self.client.stop()
+        elif key == 'enter':
+            focus = self.listbox.get_focus()[0].id
+            self.client.jump(focus)
+            if not self.client.playing():
+                self.client.play()
+            self.client.tickle()
         elif key == 'esc' or key == 'q':
             raise urwid.ExitMainLoop()
 
     def on_pos_changed(self, v):
+        #log.debug("pos changed! " + str(v))
         x = v.value()
         pos = x[u'position']
-        name = x[u'name']
-        info = self.client.entry_info(name, pos)
-        self.header.set_text(u'Now playing: %s - %s' %
-                             (info.get('artist', ''), info.get('title', '')))
+        for idx, w in enumerate(self.listbox.body):
+            w.set_current(idx == pos)
 
-    def build_ui(self):
-        self.listbox_content = []
+    def on_playlist_changed(self, v):
+        #log.debug("playlist_changed: " + str(v))
 
-        playlist = self.client.ls()
-        for item in playlist:
-            info = self.client.medialib_info(item)
-            desc = u'%s - %s' % (info.get('artist', ''),
-                                 info.get('title', ''))
-            btn = urwid.Button(desc)
-            urwid.connect_signal(btn, 'click', self.on_click, [item, info])
-            self.listbox_content.append(urwid.AttrMap(btn, None, focus_map='focus'))
+        def rebuilder(loop, data):
+            if self.rebuild_list():
+                self.loop.draw_screen()
+        if not self.rebuilding:
+            self.rebuilding = True
+            self.loop.set_alarm_in(0.5, rebuilder)
 
-        self.header = urwid.AttrWrap(urwid.Text(self.client.playing_info()), 'header')
-        self.listbox = urwid.ListBox(urwid.SimpleListWalker(self.listbox_content))
-        self.frame = urwid.Frame(urwid.AttrWrap(self.listbox, 'body'), header=self.header)
-        self.palette = [
-            ('body', 'light gray', 'black', 'standout'),
-            ('focus', 'white', 'dark red'),
-            ('header', 'light gray', 'dark gray', 'bold')
-        ]
-        self.screen = urwid.raw_display.Screen()
+    def on_playback_current_id(self, v):
+        if not v:
+            self.current_id = None
+        else:
+            self.current_id = v.value()
+        if self.current_id:
+            self.current_info = self.client.medialib_info(self.current_id)
+            log.debug("current_id: " + str(self.current_id))
+            log.debug("current info: " + str(self.current_info))
 
-        self.client.set_on_pos_changed(self.on_pos_changed)
+    def on_playback_status(self, v):
+        status = v.value()
+        log.debug("playback_status: %s" % (status))
+        if status == 0:  # stopped
+            self.current_id = None
+            self.current_info = None
+            self.set_progress(0, 100)
+
+    def rebuild_list(self):
+        try:
+            while len(self.listbox.body):
+                self.listbox.body.pop()
+            log.debug("List length is now %d items" % (len(self.listbox.body)))
+            curr = self.client.current()
+            playlist = self.client.ls()
+            for idx, item in enumerate(playlist):
+                info = self.client.medialib_info(item)
+                artist = info.get('artist', '')
+                title = info.get('title', '')
+                w = EntryWidget(item, str(idx+1), artist, title)
+                if curr == item:
+                    w.set_current(True)
+                self.listbox.body.append(w)
+            log.debug("Rebuilt list! %d items" % (len(self.listbox.body)))
+        finally:
+            self.rebuilding = False
+        return True
 
     def on_click(self, btn, choice):
         song_id = choice[0]
@@ -150,17 +245,72 @@ class Xui(object):
             self.client.play()
         self.client.tickle()
 
+    def set_progress(self, amt):
+        ''' set progress in percentages'''
+        self.header.set_completion(amt)
+
+    def refresh_current_id(self):
+        if self.current_id:
+            return self.current_id
+        self.current_id = self.client.current()
+        if self.current_id:
+            self.current_info = self.client.medialib_info(self.current_id)
+            log.debug("current_id: " + str(self.current_id))
+            log.debug("current info: " + str(self.current_info))
+        return self.current_id
+
+    def start_progress(self):
+        def update_progress(loop, obj):
+            curr = obj.refresh_current_id()
+            if curr:
+                playtime = obj.client.playtime()
+                duration = obj.current_info.get('duration', 0)
+                #log.debug("update progress for %s: %s / %s" % (curr, playtime, duration))
+                if duration > 0:
+                    obj.set_progress(int(float(playtime) / float(duration) * 100.0))
+                else:
+                    obj.set_progress(0)
+            if obj.progress_enabled:
+                loop.set_alarm_in(5, update_progress, obj)
+        self.progress_enabled = True
+        update_progress(self.loop, self)
+
+    def stop_progress(self):
+        self.progress_enabled = False
+
     def display(self):
-        self.build_ui()
-        loop = urwid.MainLoop(self.frame,
-                              self.palette,
-                              self.screen,
-                              unhandled_input=self.unhandled)
-        loop.run()
+        self.palette = [
+            ('body', 'dark cyan', ''),
+            ('focus', 'white', 'black'),
+            ('highlight', 'dark red', ''),
+            ('header', 'light gray', '', 'bold'),
+            ('progress_off', 'dark gray', '', ''),
+            ('progress_on', 'dark gray', 'black', '')
+        ]
+        self.screen = urwid.raw_display.Screen()
+        #self.header = AttrMap(Text(self.client.playing_info()), 'header')
+        self.header = urwid.ProgressBar('progress_off', 'progress_on', 50, 100)
+        self.listbox = ListBox(SimpleFocusListWalker([]))
+        self.rebuild_list()
+        self.frame = Frame(AttrMap(self.listbox, 'body'), header=self.header)
+        self.client.set_on_pos_changed(self.on_pos_changed)
+        self.client.set_on_playlist_changed(self.on_playlist_changed)
+        self.client.set_on_playback_current_id(self.on_playback_current_id)
+        self.client.set_on_playback_status(self.on_playback_status)
+        self.client.xmms.playback_current_id(cb=self.on_playback_current_id)
+        log.debug("Starting mainloop...")
+        self.loop = urwid.MainLoop(self.frame,
+                                   self.palette,
+                                   self.screen,
+                                   unhandled_input=self.unhandled,
+                                   event_loop=urwid.GLibEventLoop())
+        self.start_progress()
+        self.loop.run()
 
 
 def main():
     try:
+        log.info("--- starting ---")
         client = Client()
         client.connect()
 
@@ -169,14 +319,6 @@ def main():
     except XmmsError, e:
         print >> sys.stderr, "Error: %s" % (e)
         sys.exit(1)
-
-    #now_playing = xui.current()
-    #if now_playing == 0:
-    #    print "(nothing playing)"
-    #    return
-    #info = xui.medialib_info(now_playing)
-    #print "%s - %s" % (info.get('artist', ''), info.get('title', ''))
-
 
 if __name__ == "__main__":
     main()
