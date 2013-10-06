@@ -170,6 +170,14 @@ class EntryWidget(WidgetWrap):
         return key
 
 
+class XuiProgressBar(urwid.ProgressBar):
+    def __init__(self):
+        super(XuiProgressBar, self).__init__('progress_off', 'progress_on', 0, 100)
+
+    def get_text(self):
+        return ""
+
+
 class Xui(object):
     """
     Curses UI to the XMMS client
@@ -185,21 +193,6 @@ class Xui(object):
 
     def unhandled(self, key):
         if isinstance(key, tuple):
-            if key[0] == 'mouse press':
-                pass
-            elif key[0] == 'mouse release':
-                idx = key[3] - 1
-                if self.client.playing():
-                    if self.current_pos == idx:
-                        self.client.pause()
-                    else:
-                        self.client.set_next(idx)
-                        self.client.tickle()
-                else:
-                    self.client.set_next(idx)
-                    self.client.play()
-                    self.client.tickle()
-                self.current_pos = idx
             return
         key = key.lower()
         if key == 'p':
@@ -333,11 +326,11 @@ class Xui(object):
             ('highlight', 'dark red', ''),
             ('header', 'light gray', '', 'bold'),
             ('progress_off', 'dark gray', '', ''),
-            ('progress_on', 'dark gray', 'black', '')
+            ('progress_on', 'dark gray', 'black', ''),
         ]
         self.screen = urwid.raw_display.Screen()
         #self.header = AttrMap(Text(self.client.playing_info()), 'header')
-        self.header = urwid.ProgressBar('progress_off', 'progress_on', 50, 100)
+        self.header = XuiProgressBar()
         self.listbox = ListBox(SimpleFocusListWalker([]))
         self.rebuild_list()
         self.frame = Frame(AttrMap(self.listbox, 'body'), header=self.header)
@@ -352,7 +345,8 @@ class Xui(object):
                                    self.palette,
                                    self.screen,
                                    unhandled_input=self.unhandled,
-                                   event_loop=urwid.GLibEventLoop())
+                                   event_loop=urwid.GLibEventLoop(),
+                                   handle_mouse=True)
         self.start_progress()
         self.loop.run()
 
