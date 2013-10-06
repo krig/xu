@@ -5,6 +5,7 @@
 
 import xmmsclient
 import xmmsclient.glib
+import xmmsclient.collections as coll
 import sys
 import os
 import urwid
@@ -96,6 +97,32 @@ class Client(object):
     def playtime(self):
         return self._sync(self.xmms.playback_playtime())
 
+    def match(self, artist=None, album=None, title=None):
+        if artist:
+            return coll.Match(field='artist', value=artist)
+        elif album:
+            return coll.Match(field='album', value=album)
+        elif title:
+            return coll.Match(field='title', value=title)
+        else:
+            return None
+
+    def query(self, coll, order):
+        '''coll is a collection object
+        order is a string describing how to sort the result
+        returns all matching ids
+
+        client.query(client.match(album="foo"))
+        '''
+        return self._sync(self.xmms.coll_query_ids(coll, order.split()))
+
+    def add_collection(self, coll, order):
+        '''coll is a collection object
+        order is a string describing how to sort the result
+        adds the collection object to the playlist
+        '''
+        return self._sync(self.xmms.playlist_add_collection(coll, order.split()))
+
     def jump(self, trackid):
         pl = self.ls()
         for n, tid in enumerate(pl):
@@ -154,17 +181,25 @@ class Xui(object):
         self.progress_enabled = False
         self.current_id = None
         self.current_info = None
+        self.current_pos = None
 
     def unhandled(self, key):
         if isinstance(key, tuple):
             if key[0] == 'mouse press':
                 pass
             elif key[0] == 'mouse release':
-                idx = key[3]
-                self.client.set_next(idx - 1)
-                if not self.client.playing():
+                idx = key[3] - 1
+                if self.client.playing():
+                    if self.current_pos == idx:
+                        self.client.pause()
+                    else:
+                        self.client.set_next(idx)
+                        self.client.tickle()
+                else:
+                    self.client.set_next(idx)
                     self.client.play()
-                self.client.tickle()
+                    self.client.tickle()
+                self.current_pos = idx
             return
         key = key.lower()
         if key == 'p':
@@ -174,6 +209,14 @@ class Xui(object):
                 self.client.play()
         elif key == 's':
             self.client.stop()
+        elif key == 'a':
+            self.show_search_ui()
+        #elif key == 'y':
+        #    yobquery = self.client.match(artist='YOB')
+        #    if yobquery:
+        #        self.client.add_collection(yobquery, 'artist')
+        #    else:
+        #        log.debug("yob query failed")
         elif key == 'enter':
             focus = self.listbox.get_focus()[0].id
             self.client.jump(focus)
@@ -183,16 +226,19 @@ class Xui(object):
         elif key == 'esc' or key == 'q':
             raise urwid.ExitMainLoop()
 
+    def show_search_ui(self):
+        pass
+
     def on_pos_changed(self, v):
-        #log.debug("pos changed! " + str(v))
         x = v.value()
         pos = x[u'position']
+        self.current_pos = pos
         for idx, w in enumerate(self.listbox.body):
-            w.set_current(idx == pos)
+            is_focus = idx == pos
+            w.set_current(is_focus)
+        self.listbox.set_focus(pos)
 
     def on_playlist_changed(self, v):
-        #log.debug("playlist_changed: " + str(v))
-
         def rebuilder(loop, data):
             if self.rebuild_list():
                 self.loop.draw_screen()
@@ -259,6 +305,8 @@ class Xui(object):
             log.debug("current info: " + str(self.current_info))
         return self.current_id
 
+    PROGRESS_REFRESH_RATE = 2
+
     def start_progress(self):
         def update_progress(loop, obj):
             curr = obj.refresh_current_id()
@@ -271,7 +319,7 @@ class Xui(object):
                 else:
                     obj.set_progress(0)
             if obj.progress_enabled:
-                loop.set_alarm_in(5, update_progress, obj)
+                loop.set_alarm_in(obj.PROGRESS_REFRESH_RATE, update_progress, obj)
         self.progress_enabled = True
         update_progress(self.loop, self)
 
@@ -298,6 +346,7 @@ class Xui(object):
         self.client.set_on_playback_current_id(self.on_playback_current_id)
         self.client.set_on_playback_status(self.on_playback_status)
         self.client.xmms.playback_current_id(cb=self.on_playback_current_id)
+        self.client.xmms.playlist_current_pos(cb=self.on_pos_changed)
         log.debug("Starting mainloop...")
         self.loop = urwid.MainLoop(self.frame,
                                    self.palette,
