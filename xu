@@ -44,13 +44,26 @@ class Client(object):
     def _sync(self, r):
         r.wait()
         if r.iserror():
-            raise XmmsError(r.get_error())
+            v = r.value()
+            if isinstance(v, basestring):
+                raise XmmsError(v)
+            elif isinstance(v, xmmsclient.XMMSValue):
+                raise XmmsError(v.get_error())
+            else:
+                raise XmmsError(repr(v))
         return r.value()
 
-    def current(self):
+    def current_id(self):
         return self._sync(self.xmms.playback_current_id())
 
+    def current_pos(self):
+        pos = self._sync(self.xmms.playlist_current_pos())
+        if pos:
+            return pos[u'position']
+        return None
+
     def medialib_info(self, track):
+        log.debug("Get info: " + repr(track))
         return self._sync(self.xmms.medialib_get_info(track))
 
     def ls(self):
@@ -85,7 +98,7 @@ class Client(object):
 
     def playing_info(self):
         if self.playing():
-            info = self.medialib_info(self.current())
+            info = self.medialib_info(self.current_id())
             return u"%s %s - %s" % (PROMPT, info.get('artist', ''), info.get('title', ''))
         else:
             return PROMPT
@@ -237,7 +250,7 @@ class Xui(object):
                 self.loop.draw_screen()
         if not self.rebuilding:
             self.rebuilding = True
-            self.loop.set_alarm_in(0.5, rebuilder)
+            self.loop.set_alarm_in(1.0, rebuilder)
 
     def on_playback_current_id(self, v):
         if not v:
@@ -258,24 +271,38 @@ class Xui(object):
             self.set_progress(0, 100)
 
     def rebuild_list(self):
+        if self.listbox.focus:
+            focus = self.listbox.focus_position
+        else:
+            focus = None
+        retries = 3
+        retry = 0
         try:
-            while len(self.listbox.body):
-                self.listbox.body.pop()
-            log.debug("List length is now %d items" % (len(self.listbox.body)))
-            curr = self.client.current()
-            playlist = self.client.ls()
-            for idx, item in enumerate(playlist):
-                info = self.client.medialib_info(item)
-                artist = info.get('artist', '')
-                title = info.get('title', '')
-                w = EntryWidget(item, str(idx+1), artist, title)
-                if curr == item:
-                    w.set_current(True)
-                self.listbox.body.append(w)
-            log.debug("Rebuilt list! %d items" % (len(self.listbox.body)))
+            while retry < retries:
+                try:
+                    while len(self.listbox.body):
+                        self.listbox.body.pop()
+                    playlist = self.client.ls()
+                    self.current_id = self.client.current_id()
+                    self.current_pos = self.client.current_pos()
+                    log.debug("Rebuilding: %s, %s, %s", self.current_id, self.current_pos, playlist)
+                    for idx, item in enumerate(playlist):
+                        info = self.client.medialib_info(item)
+                        artist = info.get('artist', '')
+                        title = info.get('title', '')
+                        w = EntryWidget(item, str(idx+1), artist, title)
+                        if idx == self.current_pos:
+                            w.set_current(True)
+                        self.listbox.body.append(w)
+                    if focus:
+                        self.listbox.set_focus(focus)
+                    log.debug("Rebuilt list! %d items" % (len(self.listbox.body)))
+                    return True
+                except XmmsError, e:
+                    log.exception(e)
+                retry += 1
         finally:
             self.rebuilding = False
-        return True
 
     def on_click(self, btn, choice):
         song_id = choice[0]
@@ -291,7 +318,7 @@ class Xui(object):
     def refresh_current_id(self):
         if self.current_id:
             return self.current_id
-        self.current_id = self.client.current()
+        self.current_id = self.client.current_id()
         if self.current_id:
             self.current_info = self.client.medialib_info(self.current_id)
             log.debug("current_id: " + str(self.current_id))
