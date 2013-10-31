@@ -17,8 +17,8 @@ from urwid import AttrMap, ListBox, Frame, Text, Padding, WidgetWrap, Columns, S
 PROMPT = u">>"
 
 
-log.basicConfig(filename='xu.log', level=log.DEBUG)
-
+#log.basicConfig(filename='xu.log', level=log.DEBUG)
+log.disable(log.ERROR)
 
 class XmmsError(Exception):
     def __init__(self, msg):
