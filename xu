@@ -12,13 +12,15 @@ import urwid
 import urwid.raw_display
 import logging as log
 
-from urwid import AttrMap, ListBox, Frame, Text, Padding, WidgetWrap, Columns, SimpleFocusListWalker
+from urwid import AttrMap, ListBox, Frame
+from urwid import Text, Padding, WidgetWrap, Columns, SimpleFocusListWalker
 
 PROMPT = u">>"
 
 
 #log.basicConfig(filename='xu.log', level=log.DEBUG)
 log.disable(log.ERROR)
+
 
 class XmmsError(Exception):
     def __init__(self, msg):
@@ -164,7 +166,8 @@ class EntryWidget(WidgetWrap):
         self.song_title = title
         self.content = '%s - %s' % (artist, title)
         self.item = [
-            ('fixed', 5, Padding(AttrMap(Text(pln, align='right'), 'body', 'focus'), align='right', right=1)),
+            ('fixed', 5, Padding(AttrMap(Text(pln, align='right'), 'body', 'focus'),
+                                 align='right', right=1)),
             AttrMap(Text(self.content), 'body', 'focus'),
         ]
         w = Columns(self.item)
@@ -209,20 +212,11 @@ class Xui(object):
             return
         key = key.lower()
         if key == 'p':
-            if self.client.playing():
-                self.client.pause()
-            else:
-                self.client.play()
+            self.toggle_playing()
         elif key == 's':
             self.client.stop()
         elif key == 'a':
             self.show_search_ui()
-        #elif key == 'y':
-        #    yobquery = self.client.match(artist='YOB')
-        #    if yobquery:
-        #        self.client.add_collection(yobquery, 'artist')
-        #    else:
-        #        log.debug("yob query failed")
         elif key == 'enter':
             focus = self.listbox.get_focus()[0].id
             self.client.jump(focus)
@@ -231,6 +225,12 @@ class Xui(object):
             self.client.tickle()
         elif key == 'esc' or key == 'q':
             raise urwid.ExitMainLoop()
+
+    def toggle_playing(self):
+        if self.client.playing():
+            self.client.pause()
+        else:
+            self.client.play()
 
     def show_search_ui(self):
         pass
@@ -285,7 +285,10 @@ class Xui(object):
                     playlist = self.client.ls()
                     self.current_id = self.client.current_id()
                     self.current_pos = self.client.current_pos()
-                    log.debug("Rebuilding: %s, %s, %s", self.current_id, self.current_pos, playlist)
+                    log.debug("Rebuilding: %s, %s, %s",
+                              self.current_id,
+                              self.current_pos,
+                              playlist)
                     for idx, item in enumerate(playlist):
                         info = self.client.medialib_info(item)
                         artist = info.get('artist', '')
