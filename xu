@@ -101,7 +101,10 @@ class Client(object):
     def playing_info(self):
         if self.playing():
             info = self.medialib_info(self.current_id())
-            return u"%s %s - %s" % (PROMPT, info.get('artist', ''), info.get('title', ''))
+            if 'artist' in info or 'title' in info:
+                return u"%s %s - %s" % (PROMPT, info.get('artist', ''), info.get('title', ''))
+            else:
+                return u"%s %s" % (PROMPT, info.get('url', ''))
         else:
             return PROMPT
 
@@ -291,8 +294,8 @@ class Xui(object):
                               playlist)
                     for idx, item in enumerate(playlist):
                         info = self.client.medialib_info(item)
-                        artist = info.get('artist', '')
-                        title = info.get('title', '')
+                        artist = info.get('artist', info.get('album', ''))
+                        title = info.get('title', info.get('url', info.get('album', '')))
                         w = EntryWidget(item, str(idx+1), artist, title)
                         if idx == self.current_pos:
                             w.set_current(True)
