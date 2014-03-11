@@ -65,9 +65,12 @@ class Client(object):
         return self._sync(self.xmms.playback_current_id())
 
     def current_pos(self):
-        pos = self._sync(self.xmms.playlist_current_pos())
-        if pos:
-            return pos[u'position']
+        try:
+            pos = self._sync(self.xmms.playlist_current_pos())
+            if pos:
+                return pos[u'position']
+        except XmmsError:
+            pass
         return None
 
     def medialib_info(self, track):
@@ -279,7 +282,7 @@ class AlbumArt(urwid.Widget):
 
         imgdata = self._art_data
         im = Image.open(StringIO(imgdata))
-        im = im.resize(rendersize, Image.ANTIALIAS)
+        im = im.resize(rendersize, Image.NEAREST)
         rows = []
         for y in xrange(0, im.size[1]):
             col = []
@@ -341,12 +344,17 @@ class Xui(object):
 
     def on_pos_changed(self, v):
         x = v.value()
+        if isinstance(x, basestring):
+            return
         pos = x[u'position']
         self.current_pos = pos
         for idx, w in enumerate(self.listbox.body):
             is_focus = idx == pos
             w.set_current(is_focus)
-        self.listbox.set_focus(pos)
+        try:
+            self.listbox.set_focus(pos)
+        except IndexError:
+            pass
 
     def on_playlist_changed(self, v):
         def rebuilder(loop, data):
@@ -412,7 +420,10 @@ class Xui(object):
                             w.set_current(True)
                         self.listbox.body.append(w)
                     if focus:
-                        self.listbox.set_focus(focus)
+                        try:
+                            self.listbox.set_focus(focus)
+                        except IndexError:
+                            pass
                     log.debug("Rebuilt list! %d items" % (len(self.listbox.body)))
                     return True
                 except XmmsError, e:
@@ -477,7 +488,7 @@ class Xui(object):
         self.listbox = ListBox(SimpleFocusListWalker([]))
         self.albumart = AlbumArt()
         self.rebuild_list()
-        bodysplit = AttrMap(Columns([self.listbox, (24, self.albumart)],
+        bodysplit = AttrMap(Columns([self.listbox, (32, self.albumart)],
                                     dividechars=1, min_width=24), 'body')
         self.frame = Frame(bodysplit, header=self.header)
         self.client.set_on_pos_changed(self.on_pos_changed)
