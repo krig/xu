@@ -11,6 +11,7 @@ import os
 import urwid
 import urwid.raw_display
 import logging as log
+import subprocess
 
 from urwid import AttrMap, ListBox, Frame
 from urwid import Text, Padding, WidgetWrap, Columns, SimpleFocusListWalker
@@ -35,11 +36,14 @@ class Client(object):
         self.xmms = None
         self.conn = None
 
-    def connect(self):
+    def connect(self, retry=True):
         self.xmms = xmmsclient.XMMS("xu0")
         try:
             self.xmms.connect(os.getenv("XMMS_PATH"))
         except IOError, e:
+            if retry:
+                subprocess.call(["xmms2-launcher"])
+                return self.connect(retry=False)
             raise XmmsError(e)
         self.conn = xmmsclient.glib.GLibConnector(self.xmms)
 
