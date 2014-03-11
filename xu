@@ -19,8 +19,10 @@ from urwid import Text, Padding, WidgetWrap, Columns, SimpleFocusListWalker
 PROMPT = u">>"
 
 
-#log.basicConfig(filename='xu.log', level=log.DEBUG)
-log.disable(log.ERROR)
+if '-d' in sys.argv:
+    log.basicConfig(filename='xu.log', level=log.DEBUG)
+else:
+    log.disable(log.ERROR)
 
 
 class XmmsError(Exception):
@@ -72,6 +74,10 @@ class Client(object):
         log.debug("Get info: " + repr(track))
         return self._sync(self.xmms.medialib_get_info(track))
 
+    def bindata_retrieve(self, hashval):
+        log.debug("Bindata retrieve: " + repr(hashval))
+        return self._sync(self.xmms.bindata_retrieve(hashval))
+
     def ls(self):
         return self._sync(self.xmms.playlist_list_entries())
 
@@ -108,7 +114,7 @@ class Client(object):
             if 'artist' in info or 'title' in info:
                 return u"%s %s - %s" % (PROMPT, info.get('artist', ''), info.get('title', ''))
             else:
-                return u"%s %s" % (PROMPT, info.get('url', ''))
+                return u"%s %s" % (PROMPT, cleanurl(info.get('url', '')))
         else:
             return PROMPT
 
@@ -201,6 +207,97 @@ class XuiProgressBar(urwid.ProgressBar):
         return ""
 
 
+class ArtCanvas(urwid.Canvas):
+    cacheable = False
+
+    def __init__(self, data, size):
+        urwid.Canvas.__init__(self)
+        self._data = data
+        self.cursor = None
+        self._artsize = size
+
+    def rows(self):
+        return self._artsize[1]
+
+    def cols(self):
+        return self._artsize[0]
+
+    def translated_coords(self, dx, dy):
+        return None
+
+    def content(self, trim_left=0, trim_top=0, cols=None, rows=None, attr_map=None):
+        """
+        Return the canvas content as a list of rows where each row
+        is a list of (attr, cs, text) tuples.
+
+        trim_left, trim_top, cols, rows may be set by
+        CompositeCanvas when rendering a partially obscured
+        canvas.
+        """
+        maxcol, maxrow = self.cols(), self.rows()
+        if not cols:
+            cols = maxcol - trim_left
+        if not rows:
+            rows = maxrow - trim_top
+        for row in self._data:
+            yield row
+
+
+class AlbumArt(urwid.Widget):
+    _sizing = frozenset(['flow'])
+
+    def __init__(self):
+        urwid.Widget.__init__(self)
+        self._art_size = (12, 8)
+        self._art_data = None
+        self._art_content = None
+
+    def render(self, size, focus=False):
+        if self._art_size != size or not self._art_content:
+            self._art_size = size
+            self._art_rebuild()
+        ret = ArtCanvas(self._art_content, self._art_size)
+        return ret
+
+    def set_data(self, data):
+        self._art_data = data
+        self._art_rebuild()
+
+    def clear(self):
+        self._art_data = None
+        self._art_rebuild()
+
+    def _art_rebuild(self):
+        from cStringIO import StringIO
+        from PIL import Image
+        size = self._art_size
+        if not self._art_data:
+            self._art_content = [row for row in self._blank_rows(size)]
+            return
+
+        rendersize = (size[0], size[0]/2)
+
+        imgdata = self._art_data
+        im = Image.open(StringIO(imgdata))
+        im = im.resize(rendersize, Image.ANTIALIAS)
+        rows = []
+        for y in xrange(0, im.size[1]):
+            col = []
+            for x in xrange(0, im.size[0]):
+                clr = hexrgb(RGB(im.getpixel((x, y))))
+                attr = urwid.AttrSpec(clr, clr)
+                col.append((attr, None, '#'))
+            rows.append(col)
+        for r in self._blank_rows((size[0], size[1] - im.size[1])):
+            rows.append(r)
+        self._art_content = rows
+
+    def _blank_rows(self, size):
+        defattr = urwid.AttrSpec('default', 'default')
+        for y in xrange(0, size[1]):
+            yield [(defattr, None, ' ') for x in xrange(0, size[0])]
+
+
 class Xui(object):
     """
     Curses UI to the XMMS client
@@ -268,6 +365,7 @@ class Xui(object):
             self.current_info = self.client.medialib_info(self.current_id)
             log.debug("current_id: " + str(self.current_id))
             log.debug("current info: " + str(self.current_info))
+            self.update_album_art(self.current_info)
 
     def on_playback_status(self, v):
         status = v.value()
@@ -276,6 +374,15 @@ class Xui(object):
             self.current_id = None
             self.current_info = None
             self.set_progress(0, 100)
+
+    def update_album_art(self, info):
+        """yep.. ascii album art \m/"""
+        imghash = info.get('picture_front')
+        if imghash:
+            data = self.client.bindata_retrieve(imghash)
+            self.albumart.set_data(data)
+        else:
+            self.albumart.clear()
 
     def rebuild_list(self):
         if self.listbox.focus:
@@ -299,7 +406,7 @@ class Xui(object):
                     for idx, item in enumerate(playlist):
                         info = self.client.medialib_info(item)
                         artist = info.get('artist', info.get('album', ''))
-                        title = info.get('title', info.get('url', info.get('album', '')))
+                        title = info.get('title', cleanurl(info.get('url', info.get('album', ''))))
                         w = EntryWidget(item, str(idx+1), artist, title)
                         if idx == self.current_pos:
                             w.set_current(True)
@@ -366,11 +473,13 @@ class Xui(object):
             ('progress_on', 'dark gray', 'black', ''),
         ]
         self.screen = urwid.raw_display.Screen()
-        #self.header = AttrMap(Text(self.client.playing_info()), 'header')
         self.header = XuiProgressBar()
         self.listbox = ListBox(SimpleFocusListWalker([]))
+        self.albumart = AlbumArt()
         self.rebuild_list()
-        self.frame = Frame(AttrMap(self.listbox, 'body'), header=self.header)
+        bodysplit = AttrMap(Columns([self.listbox, (24, self.albumart)],
+                                    dividechars=1, min_width=24), 'body')
+        self.frame = Frame(bodysplit, header=self.header)
         self.client.set_on_pos_changed(self.on_pos_changed)
         self.client.set_on_playlist_changed(self.on_playlist_changed)
         self.client.set_on_playback_current_id(self.on_playback_current_id)
@@ -386,6 +495,26 @@ class Xui(object):
                                    handle_mouse=True)
         self.start_progress()
         self.loop.run()
+
+
+def RGB(clr):
+    if len(clr) == 3:
+        return clr
+    elif len(clr) > 3:
+        return clr[0:3]
+    else:
+        return clr[0], clr[0], clr[0]
+
+
+def hexrgb(rgb):
+    "given (r, g, b) returns '#xxx'"
+    return '#%x%x%x' % (rgb[0]/16, rgb[1]/16, rgb[2]/16)
+
+
+def cleanurl(url):
+    if url.startswith('file://'):
+        return os.path.basename(url[7:])
+    return url
 
 
 def main():
