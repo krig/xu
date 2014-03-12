@@ -356,9 +356,11 @@ class Xui(object):
     def execute_command(self, cmd):
         cmd = shlex.split(cmd)
         ok_commands = ['add', 'jump', 'next', 'pause', 'play', 'prev',
-                       'remove', 'stop', 'toggle']
+                       'remove', 'stop', 'toggle', 'playlist', 'clear']
         if cmd and cmd[0] in ok_commands:
             subprocess.call(['xmms2'] + cmd)
+            if self.rebuild_list():
+                self.loop.draw_screen()
 
     def focus_search(self):
         self.searchbox.set_edit_text(u'')
