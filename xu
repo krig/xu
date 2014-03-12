@@ -12,11 +12,12 @@ import urwid
 import urwid.raw_display
 import logging as log
 import subprocess
+import shlex
 
-from urwid import AttrMap, ListBox, Frame
+from urwid import AttrMap, ListBox, Frame, Edit
 from urwid import Text, Padding, WidgetWrap, Columns, SimpleFocusListWalker
 
-PROMPT = u">>"
+PROMPT = u"> "
 
 
 if '-d' in sys.argv:
@@ -323,8 +324,6 @@ class Xui(object):
             self.toggle_playing()
         elif key == 's':
             self.client.stop()
-        elif key == 'enter':
-            self.show_search_ui()
         elif key == ' ':
             focus = self.listbox.get_focus()[0].pos
             #self.client.jump(focus)
@@ -333,7 +332,18 @@ class Xui(object):
                 self.client.play()
             self.client.tickle()
         elif key == 'esc' or key == 'q':
-            raise urwid.ExitMainLoop()
+            if key == 'esc' and self.frame.focus_position == 'footer':
+                self.unfocus_search()
+            else:
+                raise urwid.ExitMainLoop()
+        elif self.frame.focus_position == 'footer':
+            if key == 'enter':
+                self.unfocus_search()
+                cmd = self.searchbox.get_edit_text()
+                self.execute_command(cmd)
+                log.debug("Execute: %s" % (cmd))
+        elif key == 'enter':
+            self.focus_search()
         else:
             log.debug("key: %s" % (key))
 
@@ -343,8 +353,21 @@ class Xui(object):
         else:
             self.client.play()
 
-    def show_search_ui(self):
-        pass
+    def execute_command(self, cmd):
+        cmd = shlex.split(cmd)
+        ok_commands = ['add', 'jump', 'next', 'pause', 'play', 'prev',
+                       'remove', 'stop', 'toggle']
+        if cmd and cmd[0] in ok_commands:
+            subprocess.call(['xmms2'] + cmd)
+
+    def focus_search(self):
+        self.searchbox.set_edit_text(u'')
+        self.searchbox.set_caption(('search', PROMPT))
+        self.frame.focus_position = 'footer'
+
+    def unfocus_search(self):
+        self.searchbox.set_caption(('footer', PROMPT))
+        self.frame.focus_position = 'body'
 
     def on_pos_changed(self, v):
         x = v.value()
@@ -378,9 +401,9 @@ class Xui(object):
             log.debug("current_id: " + str(self.current_id))
             log.debug("current info: " + str(self.current_info))
             self.update_album_art(self.current_info)
-            self.footer_text(self.current_info)
+            self.info_text(self.current_info)
 
-    def footer_text(self, info):
+    def info_text(self, info):
         txt = []
         if 'artist' in info:
             txt.append(info['artist'])
@@ -389,9 +412,9 @@ class Xui(object):
         if 'title' in info:
             txt.append(info['title'])
         if txt:
-            self.footer.set_text(' - '.join(txt))
+            self.info.set_text(' - '.join(txt))
         else:
-            self.footer.set_text(u"%s" % (cleanurl(info.get('url', ''))))
+            self.info.set_text(u"%s" % (cleanurl(info.get('url', ''))))
 
     def on_playback_status(self, v):
         status = v.value()
@@ -499,6 +522,7 @@ class Xui(object):
             ('highlight', 'yellow', ''),
             ('header', 'light gray', ''),
             ('footer', 'brown', '', ''),
+            ('search', 'white', '', ''),
             ('progress_off', 'dark gray', ''),
             ('progress_on', 'dark gray', 'black'),
         ]
@@ -509,8 +533,9 @@ class Xui(object):
         self.rebuild_list()
         bodysplit = AttrMap(Columns([self.listbox, (32, urwid.Padding(self.albumart, right=1))],
                                     min_width=24), 'body')
-        self.footer = Text(' ', align='center')
-        self.frame = Frame(bodysplit, header=self.header, footer=AttrMap(self.footer, 'footer'))
+        self.info = Text(' ', align='right')
+        self.searchbox = Edit(caption=PROMPT)
+        self.frame = Frame(bodysplit, header=self.header, footer=AttrMap(Columns([self.searchbox, self.info]), 'footer'))
         self.client.set_on_pos_changed(self.on_pos_changed)
         self.client.set_on_playlist_changed(self.on_playlist_changed)
         self.client.set_on_playback_current_id(self.on_playback_current_id)
