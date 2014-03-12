@@ -286,6 +286,8 @@ class AlbumArt(urwid.Widget):
         im = Image.open(StringIO(imgdata))
         im = im.resize(rendersize, Image.NEAREST)
         rows = []
+        for r in self._blank_rows((size[0], size[1] - im.size[1])):
+            rows.append(r)
         for y in xrange(0, im.size[1]):
             col = []
             for x in xrange(0, im.size[0]):
@@ -293,8 +295,6 @@ class AlbumArt(urwid.Widget):
                 attr = urwid.AttrSpec(clr, clr)
                 col.append((attr, None, '#'))
             rows.append(col)
-        for r in self._blank_rows((size[0], size[1] - im.size[1])):
-            rows.append(r)
         self._art_content = rows
 
     def _blank_rows(self, size):
@@ -338,8 +338,8 @@ class Xui(object):
                 raise urwid.ExitMainLoop()
         elif self.frame.focus_position == 'footer':
             if key == 'enter':
-                self.unfocus_search()
                 cmd = self.searchbox.get_edit_text()
+                self.unfocus_search()
                 self.execute_command(cmd)
                 log.debug("Execute: %s" % (cmd))
         elif key == 'enter':
@@ -374,8 +374,10 @@ class Xui(object):
         self.frame.focus_position = 'footer'
 
     def unfocus_search(self):
-        self.searchbox.set_caption(('footer', PROMPT))
+        #self.searchbox.set_caption(('footer', PROMPT))
         self.frame.focus_position = 'body'
+        self.searchbox.set_edit_text(u'')
+        self.info_text(self.current_info)
 
     def on_pos_changed(self, v):
         x = v.value()
@@ -412,6 +414,8 @@ class Xui(object):
             self.info_text(self.current_info)
 
     def info_text(self, info):
+        if self.frame.focus_position == 'footer':
+            return
         txt = []
         if 'artist' in info:
             txt.append(info['artist'])
@@ -420,9 +424,11 @@ class Xui(object):
         if 'title' in info:
             txt.append(info['title'])
         if txt:
-            self.info.set_text(' - '.join(txt))
+            txt = u' - '.join(txt)
         else:
-            self.info.set_text(u"%s" % (cleanurl(info.get('url', ''))))
+            txt = u"%s" % (cleanurl(info.get('url', '')))
+        #self.info.set_text(txt)
+        self.searchbox.set_caption(txt)
 
     def on_playback_status(self, v):
         status = v.value()
@@ -490,7 +496,7 @@ class Xui(object):
 
     def set_progress(self, amt):
         ''' set progress in percentages'''
-        self.header.set_completion(amt)
+        self.progress.set_completion(amt)
 
     def refresh_current_id(self):
         if self.current_id:
@@ -525,25 +531,28 @@ class Xui(object):
 
     def display(self):
         self.palette = [
-            ('body', 'dark magenta', ''),
+            ('body', 'black', ''),
             ('focus', 'white', 'black'),
-            ('highlight', 'yellow', ''),
-            ('header', 'light gray', ''),
+            ('highlight', 'light cyan', ''),
+            ('header', 'dark gray', ''),
             ('footer', 'brown', '', ''),
             ('search', 'white', '', ''),
-            ('progress_off', 'dark gray', ''),
-            ('progress_on', 'dark gray', 'black'),
+            ('progress_off', 'black', ''),
+            ('progress_on', 'black', 'black'),
         ]
         self.screen = urwid.raw_display.Screen()
-        self.header = XuiProgressBar()
+        self.progress = XuiProgressBar()
         self.listbox = ListBox(SimpleFocusListWalker([]))
         self.albumart = AlbumArt()
         self.rebuild_list()
-        bodysplit = AttrMap(Columns([self.listbox, (32, urwid.Padding(self.albumart, right=1))],
+        bodysplit = AttrMap(Columns([self.listbox, (20, urwid.Padding(self.albumart, right=1))],
                                     min_width=24), 'body')
-        self.info = Text(' ', align='right', wrap='clip')
+        #self.info = Text(' ', align='left', wrap='clip')
         self.searchbox = Edit(caption=PROMPT)
-        self.frame = Frame(bodysplit, header=self.header, footer=AttrMap(Columns([self.searchbox, self.info]), 'footer'))
+        self.frame = Frame(bodysplit,
+                           #header=AttrMap(Columns([self.info, self.progress]), 'header'),
+                           header=AttrMap(self.progress, 'header'),
+                           footer=AttrMap(self.searchbox, 'footer'))
         self.client.set_on_pos_changed(self.on_pos_changed)
         self.client.set_on_playlist_changed(self.on_playlist_changed)
         self.client.set_on_playback_current_id(self.on_playback_current_id)
@@ -562,6 +571,8 @@ class Xui(object):
 
 
 def RGB(clr):
+    if isinstance(clr, int):
+        return clr, clr, clr
     if len(clr) == 3:
         return clr
     elif len(clr) > 3:
