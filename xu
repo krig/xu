@@ -175,14 +175,15 @@ class Client(object):
 
 
 class EntryWidget(WidgetWrap):
-    def __init__(self, id, pln, artist, title):
+    def __init__(self, id, pos, artist, title):
         self.id = id
-        self.song_pln = pln
+        self.pos = pos
+        self.song_pln = str(pos + 1)
         self.song_artist = artist
         self.song_title = title
         self.content = '%s - %s' % (artist, title)
         self.item = [
-            ('fixed', 5, Padding(AttrMap(Text(pln, align='right'), 'body', 'focus'),
+            ('fixed', 5, Padding(AttrMap(Text(self.song_pln, align='right'), 'body', 'focus'),
                                  align='right', right=1)),
             AttrMap(Text(self.content), 'body', 'focus'),
         ]
@@ -322,16 +323,19 @@ class Xui(object):
             self.toggle_playing()
         elif key == 's':
             self.client.stop()
-        elif key == 'a':
-            self.show_search_ui()
         elif key == 'enter':
-            focus = self.listbox.get_focus()[0].id
-            self.client.jump(focus)
+            self.show_search_ui()
+        elif key == ' ':
+            focus = self.listbox.get_focus()[0].pos
+            #self.client.jump(focus)
+            self.client.set_next(focus)
             if not self.client.playing():
                 self.client.play()
             self.client.tickle()
         elif key == 'esc' or key == 'q':
             raise urwid.ExitMainLoop()
+        else:
+            log.debug("key: %s" % (key))
 
     def toggle_playing(self):
         if self.client.playing():
@@ -374,6 +378,20 @@ class Xui(object):
             log.debug("current_id: " + str(self.current_id))
             log.debug("current info: " + str(self.current_info))
             self.update_album_art(self.current_info)
+            self.footer_text(self.current_info)
+
+    def footer_text(self, info):
+        txt = []
+        if 'artist' in info:
+            txt.append(info['artist'])
+        if 'album' in info:
+            txt.append(info['album'])
+        if 'title' in info:
+            txt.append(info['title'])
+        if txt:
+            self.footer.set_text(' - '.join(txt))
+        else:
+            self.footer.set_text(u"%s" % (cleanurl(info.get('url', ''))))
 
     def on_playback_status(self, v):
         status = v.value()
@@ -415,7 +433,7 @@ class Xui(object):
                         info = self.client.medialib_info(item)
                         artist = info.get('artist', info.get('album', ''))
                         title = info.get('title', cleanurl(info.get('url', info.get('album', ''))))
-                        w = EntryWidget(item, str(idx+1), artist, title)
+                        w = EntryWidget(item, idx, artist, title)
                         if idx == self.current_pos:
                             w.set_current(True)
                         self.listbox.body.append(w)
@@ -476,21 +494,23 @@ class Xui(object):
 
     def display(self):
         self.palette = [
-            ('body', 'dark cyan', ''),
+            ('body', 'dark magenta', ''),
             ('focus', 'white', 'black'),
-            ('highlight', 'dark red', ''),
-            ('header', 'light gray', '', 'bold'),
-            ('progress_off', 'dark gray', '', ''),
-            ('progress_on', 'dark gray', 'black', ''),
+            ('highlight', 'yellow', ''),
+            ('header', 'light gray', ''),
+            ('footer', 'brown', '', ''),
+            ('progress_off', 'dark gray', ''),
+            ('progress_on', 'dark gray', 'black'),
         ]
         self.screen = urwid.raw_display.Screen()
         self.header = XuiProgressBar()
         self.listbox = ListBox(SimpleFocusListWalker([]))
         self.albumart = AlbumArt()
         self.rebuild_list()
-        bodysplit = AttrMap(Columns([self.listbox, (32, self.albumart)],
-                                    dividechars=1, min_width=24), 'body')
-        self.frame = Frame(bodysplit, header=self.header)
+        bodysplit = AttrMap(Columns([self.listbox, (32, urwid.Padding(self.albumart, right=1))],
+                                    min_width=24), 'body')
+        self.footer = Text(' ', align='center')
+        self.frame = Frame(bodysplit, header=self.header, footer=AttrMap(self.footer, 'footer'))
         self.client.set_on_pos_changed(self.on_pos_changed)
         self.client.set_on_playlist_changed(self.on_playlist_changed)
         self.client.set_on_playback_current_id(self.on_playback_current_id)
