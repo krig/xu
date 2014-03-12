@@ -355,9 +355,15 @@ class Xui(object):
 
     def execute_command(self, cmd):
         cmd = shlex.split(cmd)
+        if not cmd:
+            return
         ok_commands = ['add', 'jump', 'next', 'pause', 'play', 'prev',
                        'remove', 'stop', 'toggle', 'playlist', 'clear']
-        if cmd and cmd[0] in ok_commands:
+        if cmd[0] in ('artist', 'album', 'track'):
+            pfx = cmd[0]
+            cmd[0] = 'add'
+            cmd[1] = '%s:%s' % (pfx, cmd[1])
+        if cmd[0] in ok_commands:
             subprocess.call(['xmms2'] + cmd)
             if self.rebuild_list():
                 self.loop.draw_screen()
@@ -535,7 +541,7 @@ class Xui(object):
         self.rebuild_list()
         bodysplit = AttrMap(Columns([self.listbox, (32, urwid.Padding(self.albumart, right=1))],
                                     min_width=24), 'body')
-        self.info = Text(' ', align='right')
+        self.info = Text(' ', align='right', wrap='clip')
         self.searchbox = Edit(caption=PROMPT)
         self.frame = Frame(bodysplit, header=self.header, footer=AttrMap(Columns([self.searchbox, self.info]), 'footer'))
         self.client.set_on_pos_changed(self.on_pos_changed)
