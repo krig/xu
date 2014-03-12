@@ -17,7 +17,10 @@ import shlex
 from urwid import AttrMap, ListBox, Frame, Edit
 from urwid import Text, Padding, WidgetWrap, Columns, SimpleFocusListWalker
 
-PROMPT = u"> "
+PROMPT = u":"
+STOPPED = 0
+PLAYING = 1
+PAUSED = 2
 
 
 if '-d' in sys.argv:
@@ -104,23 +107,13 @@ class Client(object):
         return self._sync(self.xmms.playback_status())
 
     def stopped(self):
-        return self.status() == 0
+        return self.status() == STOPPED
 
     def playing(self):
-        return self.status() == 1
+        return self.status() == PLAYING
 
     def paused(self):
-        return self.status() == 2
-
-    def playing_info(self):
-        if self.playing():
-            info = self.medialib_info(self.current_id())
-            if 'artist' in info or 'title' in info:
-                return u"%s %s - %s" % (PROMPT, info.get('artist', ''), info.get('title', ''))
-            else:
-                return u"%s %s" % (PROMPT, cleanurl(info.get('url', '')))
-        else:
-            return PROMPT
+        return self.status() == PAUSED
 
     def entry_info(self, name, pos):
         lst = self._sync(self.xmms.playlist_list_entries(name))
@@ -323,42 +316,61 @@ class Xui(object):
         if key == 'p':
             self.toggle_playing()
         elif key == 's':
-            self.client.stop()
+            self.stop()
         elif key == ' ':
-            focus = self.listbox.get_focus()[0].pos
-            #self.client.jump(focus)
-            self.client.set_next(focus)
-            if not self.client.playing():
-                self.client.play()
-            self.client.tickle()
+            self.jump_to_focus()
+        elif key == 'esc' and self.frame.focus_position == 'footer':
+            self.unfocus_search()
         elif key == 'esc' or key == 'q':
-            if key == 'esc' and self.frame.focus_position == 'footer':
-                self.unfocus_search()
-            else:
-                raise urwid.ExitMainLoop()
+            raise urwid.ExitMainLoop()
         elif self.frame.focus_position == 'footer':
             if key == 'enter':
                 cmd = self.searchbox.get_edit_text()
                 self.unfocus_search()
                 self.execute_command(cmd)
-                log.debug("Execute: %s" % (cmd))
-        elif key == 'enter':
+        elif key == ':':
             self.focus_search()
+        elif key == 'enter':
+            self.toggle_playing()
         else:
             log.debug("key: %s" % (key))
+
+    def stop(self):
+        self.client.stop()
+        self.info_text(self.current_info)
 
     def toggle_playing(self):
         if self.client.playing():
             self.client.pause()
         else:
             self.client.play()
+        self.info_text(self.current_info)
+
+    def jump_to_focus(self):
+        focus = self.listbox.get_focus()[0].pos
+        self.client.set_next(focus)
+        if not self.client.playing():
+            self.client.play()
+        self.client.tickle()
+        self.info_text(self.current_info)
 
     def execute_command(self, cmd):
+        log.debug("Execute: %s" % (cmd))
         cmd = shlex.split(cmd)
         if not cmd:
             return
         ok_commands = ['add', 'jump', 'next', 'pause', 'play', 'prev',
                        'remove', 'stop', 'toggle', 'playlist', 'clear']
+        shortcuts = {'a': 'add',
+                     'j': 'jump',
+                     'n': 'next',
+                     'p': 'prev',
+                     't': 'toggle',
+                     's': 'stop',
+                     'r': 'remove',
+                     'c': 'clear',
+                     'pl': 'playlist'}
+        cmd[0] = shortcuts.get(cmd[0], cmd[0])
         if cmd[0] in ('artist', 'album', 'track'):
             pfx = cmd[0]
             cmd[0] = 'add'
@@ -374,7 +386,6 @@ class Xui(object):
         self.frame.focus_position = 'footer'
 
     def unfocus_search(self):
-        #self.searchbox.set_caption(('footer', PROMPT))
         self.frame.focus_position = 'body'
         self.searchbox.set_edit_text(u'')
         self.info_text(self.current_info)
@@ -414,28 +425,31 @@ class Xui(object):
             self.info_text(self.current_info)
 
     def info_text(self, info):
-        if self.frame.focus_position == 'footer':
-            return
-        txt = []
-        if 'artist' in info:
-            txt.append(info['artist'])
-        if 'album' in info:
-            txt.append(info['album'])
-        if 'title' in info:
-            txt.append(info['title'])
-        if txt:
-            txt = u' - '.join(txt)
-        else:
-            txt = u"%s" % (cleanurl(info.get('url', '')))
-        #self.info.set_text(txt)
-        self.searchbox.set_caption(txt)
+        txt = '(not playing)'
+        if info:
+            txt = []
+            if 'artist' in info:
+                txt.append(info['artist'])
+            if 'album' in info:
+                txt.append(info['album'])
+            if 'title' in info:
+                txt.append(info['title'])
+            if txt:
+                txt = u' - '.join(txt)
+            else:
+                txt = u"%s" % (cleanurl(info.get('url', '')))
+            status = self.client.status()
+            if status == STOPPED:
+                txt += " (stopped)"
+            elif status == PAUSED:
+                txt += " (paused)"
+        if self.frame.focus_position != 'footer':
+            self.searchbox.set_caption(txt)
 
     def on_playback_status(self, v):
         status = v.value()
         log.debug("playback_status: %s" % (status))
         if status == 0:  # stopped
-            self.current_id = None
-            self.current_info = None
             self.set_progress(0, 100)
 
     def update_album_art(self, info):
@@ -518,7 +532,10 @@ class Xui(object):
                 duration = obj.current_info.get('duration', 0)
                 #log.debug("update progress for %s: %s / %s" % (curr, playtime, duration))
                 if duration > 0:
-                    obj.set_progress(int(float(playtime) / float(duration) * 100.0))
+                    try:
+                        obj.set_progress(int(float(playtime) / float(duration) * 100.0))
+                    except TypeError, e:
+                        log.debug("Error: %s (%s, %s)" % (e, repr(playtime), repr(duration)))
                 else:
                     obj.set_progress(0)
             if obj.progress_enabled:
