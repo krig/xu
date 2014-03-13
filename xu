@@ -285,7 +285,7 @@ class AlbumArt(urwid.Widget):
             col = []
             for x in xrange(0, im.size[0]):
                 clr = hexrgb(RGB(im.getpixel((x, y))))
-                attr = urwid.AttrSpec(clr, clr)
+                attr = urwid.AttrSpec(clr, clr, 256)
                 col.append((attr, None, '#'))
             rows.append(col)
         self._art_content = rows
@@ -318,7 +318,7 @@ class Xui(object):
         elif key == 's':
             self.stop()
         elif key == ' ':
-            self.jump_to_focus()
+            self.toggle_playing()
         elif key == 'esc' and self.frame.focus_position == 'footer':
             self.unfocus_search()
         elif key == 'esc' or key == 'q':
@@ -331,7 +331,7 @@ class Xui(object):
         elif key == ':':
             self.focus_search()
         elif key == 'enter':
-            self.toggle_playing()
+            self.jump_to_focus()
         else:
             log.debug("key: %s" % (key))
 
@@ -506,6 +506,8 @@ class Xui(object):
         self.client.jump(song_id)
         if not self.client.playing():
             self.client.play()
+        else:
+            self.toggle_playing()
         self.client.tickle()
 
     def set_progress(self, amt):
