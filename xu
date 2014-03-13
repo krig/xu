@@ -550,14 +550,14 @@ class Xui(object):
 
     def display(self):
         self.palette = [
-            ('body', 'black', ''),
-            ('focus', 'white', 'black'),
+            ('body', 'dark gray', ''),
+            ('focus', 'white', 'dark gray'),
             ('highlight', 'light cyan', ''),
             ('header', 'dark gray', ''),
             ('footer', 'brown', '', ''),
             ('search', 'white', '', ''),
-            ('progress_off', 'black', ''),
-            ('progress_on', 'black', 'black'),
+            ('progress_off', 'dark gray', ''),
+            ('progress_on', 'dark gray', 'dark gray'),
         ]
         self.screen = urwid.raw_display.Screen()
         self.progress = XuiProgressBar()
