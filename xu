@@ -248,6 +248,7 @@ class AlbumArt(urwid.Widget):
         urwid.Widget.__init__(self)
         self._art_size = (12, 8)
         self._art_data = None
+        self._art_mime = ''
         self._art_content = None
 
     def render(self, size, focus=False):
@@ -257,8 +258,10 @@ class AlbumArt(urwid.Widget):
         ret = ArtCanvas(self._art_content, self._art_size)
         return ret
 
-    def set_data(self, data):
+    def set_data(self, data, mime):
         self._art_data = data
+        self._art_mime = mime
+        log.debug("album art len: %s mime: %s" % (len(data), mime))
         self._art_rebuild()
 
     def clear(self):
@@ -276,19 +279,23 @@ class AlbumArt(urwid.Widget):
         rendersize = (size[0], size[0]/2)
 
         imgdata = self._art_data
-        im = Image.open(StringIO(imgdata))
-        im = im.resize(rendersize, Image.NEAREST)
-        rows = []
-        for r in self._blank_rows((size[0], size[1] - im.size[1])):
-            rows.append(r)
-        for y in xrange(0, im.size[1]):
-            col = []
-            for x in xrange(0, im.size[0]):
-                clr = hexrgb(RGB(im.getpixel((x, y))))
-                attr = urwid.AttrSpec(clr, clr, 256)
-                col.append((attr, None, '#'))
-            rows.append(col)
-        self._art_content = rows
+        try:
+            im = Image.open(StringIO(imgdata))
+            im = im.resize(rendersize, Image.NEAREST)
+            rows = []
+            for r in self._blank_rows((size[0], size[1] - im.size[1])):
+                rows.append(r)
+            for y in xrange(0, im.size[1]):
+                col = []
+                for x in xrange(0, im.size[0]):
+                    clr = hexrgb(RGB(im.getpixel((x, y))))
+                    attr = urwid.AttrSpec(clr, clr, 256)
+                    col.append((attr, None, '#'))
+                rows.append(col)
+            self._art_content = rows
+        except IOError, e:
+            log.exception(e)
+            self._art_content = [row for row in self._blank_rows(size)]
 
     def _blank_rows(self, size):
         defattr = urwid.AttrSpec('default', 'default')
@@ -457,7 +464,8 @@ class Xui(object):
         imghash = info.get('picture_front')
         if imghash:
             data = self.client.bindata_retrieve(imghash)
-            self.albumart.set_data(data)
+            mime = info.get('picture_front_mime')
+            self.albumart.set_data(data, mime)
         else:
             self.albumart.clear()
 
