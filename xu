@@ -378,7 +378,8 @@ class Xui(object):
         if not cmd:
             return
         ok_commands = ['add', 'jump', 'next', 'pause', 'play', 'prev',
-                       'remove', 'stop', 'toggle', 'playlist', 'clear']
+                       'remove', 'stop', 'toggle', 'playlist', 'clear',
+                       'collection', 'server', 'seek']
         shortcuts = {'a': 'add',
                      'j': 'jump',
                      'n': 'next',
@@ -387,7 +388,9 @@ class Xui(object):
                      's': 'stop',
                      'r': 'remove',
                      'c': 'clear',
-                     'pl': 'playlist'}
+                     'l': 'playlist',
+                     '+': 'add',
+                     '-': 'remove'}
         cmd[0] = shortcuts.get(cmd[0], cmd[0])
         if cmd[0] in ('artist', 'album', 'track'):
             pfx = cmd[0]

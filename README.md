@@ -49,6 +49,18 @@ Some other useful commands:
     :playlist switch <name>
     :server rehash
 
+Some of these commands have vim-style single letter shortcuts:
+
+    :a(dd)
+    :j(ump)
+    :n(ext)
+    :p(rev)
+    :t(oggle)
+    :s(top)
+    :r(emove)
+    :c(lear)
+    (p):l(aylist)
+
 Hit `p` to pause, `enter` to start playing the currently selected
 playlist entry, `q` to exit `xu` (playback will continue
 uninterrupted).
