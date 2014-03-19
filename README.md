@@ -42,7 +42,7 @@ For example, to add all albums by Loklok the cat, use
 
 There is a shortcut to this command, since I use it all the time:
 
-    :artist loklok
+    :+ loklok
 
 Some other useful commands:
 
@@ -62,6 +62,7 @@ Some of these commands have vim-style single letter shortcuts:
     :r(emove)
     :c(lear)
     (p):l(aylist)
+    :q(uit)
 
 Hit `p` to pause, `enter` to start playing the currently selected
 playlist entry, `q` to exit `xu` (playback will continue

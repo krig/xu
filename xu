@@ -388,14 +388,17 @@ class Xui(object):
                      's': 'stop',
                      'r': 'remove',
                      'c': 'clear',
-                     'l': 'playlist',
-                     '+': 'add',
-                     '-': 'remove'}
+                     'l': 'playlist'}
         cmd[0] = shortcuts.get(cmd[0], cmd[0])
         if cmd[0] in ('artist', 'album', 'track'):
             pfx = cmd[0]
             cmd[0] = 'add'
             cmd[1] = '%s~%s' % (pfx, cmd[1])
+        elif cmd[0] == '+':
+            cmd[0] = 'add'
+            cmd[1] = 'artist~%s' % (cmd[1])
+        elif cmd[0] in ('q', 'quit'):
+            raise urwid.ExitMainLoop()
         if cmd[0] in ok_commands:
             subprocess.call(['xmms2'] + cmd)
             if self.rebuild_list():
