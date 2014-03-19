@@ -18,6 +18,7 @@ from urwid import AttrMap, ListBox, Frame, Edit
 from urwid import Text, Padding, WidgetWrap, Columns, SimpleFocusListWalker
 
 PROMPT = u":"
+INFOLINE = u": = prompt, <enter> = play selected, p = toggle, q = quit"
 STOPPED = 0
 PLAYING = 1
 PAUSED = 2
@@ -327,16 +328,16 @@ class Xui(object):
         elif key == ' ':
             self.toggle_playing()
         elif key == 'esc' and self.frame.focus_position == 'footer':
-            self.unfocus_search()
+            self.unfocus_modeline()
         elif key == 'esc' or key == 'q':
             raise urwid.ExitMainLoop()
         elif self.frame.focus_position == 'footer':
             if key == 'enter':
-                cmd = self.searchbox.get_edit_text()
-                self.unfocus_search()
+                cmd = self.modeline.get_edit_text()
+                self.unfocus_modeline()
                 self.execute_command(cmd)
         elif key == ':':
-            self.focus_search()
+            self.focus_modeline()
         elif key == 'enter':
             self.jump_to_focus()
         else:
@@ -387,14 +388,14 @@ class Xui(object):
             if self.rebuild_list():
                 self.loop.draw_screen()
 
-    def focus_search(self):
-        self.searchbox.set_edit_text(u'')
-        self.searchbox.set_caption(('search', PROMPT))
+    def focus_modeline(self):
+        self.modeline.set_edit_text(u'')
+        self.modeline.set_caption(('modeline', PROMPT))
         self.frame.focus_position = 'footer'
 
-    def unfocus_search(self):
+    def unfocus_modeline(self):
         self.frame.focus_position = 'body'
-        self.searchbox.set_edit_text(u'')
+        self.modeline.set_edit_text(u'')
         self.info_text(self.current_info)
 
     def on_pos_changed(self, v):
@@ -432,7 +433,7 @@ class Xui(object):
             self.info_text(self.current_info)
 
     def info_text(self, info):
-        txt = '(not playing)'
+        txt = INFOLINE
         if info:
             txt = []
             if 'artist' in info:
@@ -451,7 +452,7 @@ class Xui(object):
             elif status == PAUSED:
                 txt += " (paused)"
         if self.frame.focus_position != 'footer':
-            self.searchbox.set_caption(txt)
+            self.modeline.set_caption(txt)
 
     def on_playback_status(self, v):
         status = v.value()
@@ -563,7 +564,7 @@ class Xui(object):
             ('highlight', 'light cyan', ''),
             ('header', 'dark gray', ''),
             ('footer', 'brown', '', ''),
-            ('search', 'white', '', ''),
+            ('modeline', 'white', '', ''),
             ('progress_off', 'dark gray', ''),
             ('progress_on', 'dark gray', 'dark gray'),
         ]
@@ -574,12 +575,11 @@ class Xui(object):
         self.rebuild_list()
         bodysplit = AttrMap(Columns([self.listbox, (20, urwid.Padding(self.albumart, right=1))],
                                     min_width=24), 'body')
-        #self.info = Text(' ', align='left', wrap='clip')
-        self.searchbox = Edit(caption=PROMPT)
+        self.modeline = Edit(caption=INFOLINE)
         self.frame = Frame(bodysplit,
                            #header=AttrMap(Columns([self.info, self.progress]), 'header'),
                            header=AttrMap(self.progress, 'header'),
-                           footer=AttrMap(self.searchbox, 'footer'))
+                           footer=AttrMap(self.modeline, 'footer'))
         self.client.set_on_pos_changed(self.on_pos_changed)
         self.client.set_on_playlist_changed(self.on_playlist_changed)
         self.client.set_on_playback_current_id(self.on_playback_current_id)
