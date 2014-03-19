@@ -282,7 +282,8 @@ class AlbumArt(urwid.Widget):
         imgdata = self._art_data
         try:
             im = Image.open(StringIO(imgdata))
-            im = im.resize(rendersize, Image.NEAREST)
+            im = im.convert("RGB")
+            im = im.resize(rendersize, Image.ANTIALIAS)
             rows = []
             for r in self._blank_rows((size[0], size[1] - im.size[1])):
                 rows.append(r)
