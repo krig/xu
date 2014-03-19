@@ -41,7 +41,9 @@ class Client(object):
     """
     def __init__(self):
         self.xmms = None
+        self.xmms_cb = None
         self.conn = None
+        self.conn_cb = None
 
     def connect(self, retry=True):
         self.xmms = xmmsclient.XMMS("xu0")
@@ -53,6 +55,13 @@ class Client(object):
                 return self.connect(retry=False)
             raise XmmsError(e)
         self.conn = xmmsclient.glib.GLibConnector(self.xmms)
+
+        self.xmms_cb = xmmsclient.XMMS("xu0-cb")
+        try:
+            self.xmms_cb.connect(os.getenv("XMMS_PATH"))
+        except IOError, e:
+            raise XmmsError(e)
+        self.conn_cb = xmmsclient.glib.GLibConnector(self.xmms_cb)
 
     def _sync(self, r):
         r.wait()
@@ -157,16 +166,16 @@ class Client(object):
         return False
 
     def set_on_pos_changed(self, cb):
-        self.xmms.broadcast_playlist_current_pos(cb)
+        self.xmms_cb.broadcast_playlist_current_pos(cb)
 
     def set_on_playlist_changed(self, cb):
-        self.xmms.broadcast_playlist_changed(cb)
+        self.xmms_cb.broadcast_playlist_changed(cb)
 
     def set_on_playback_current_id(self, cb):
-        self.xmms.broadcast_playback_current_id(cb)
+        self.xmms_cb.broadcast_playback_current_id(cb)
 
     def set_on_playback_status(self, cb):
-        self.xmms.broadcast_playback_status(cb)
+        self.xmms_cb.broadcast_playback_status(cb)
 
 
 class EntryWidget(WidgetWrap):
