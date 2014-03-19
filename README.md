@@ -1,5 +1,7 @@
 # xu
 
+![xu](http://i.imgur.com/dhCRr4B.png "xu")
+
 `xu` is a console UI to [xmms2][xmms2]. Manage your music
 playing from the terminal like it's meant to be managed.
 
