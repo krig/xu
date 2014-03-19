@@ -392,7 +392,7 @@ class Xui(object):
         if cmd[0] in ('artist', 'album', 'track'):
             pfx = cmd[0]
             cmd[0] = 'add'
-            cmd[1] = '%s:%s' % (pfx, cmd[1])
+            cmd[1] = '%s~%s' % (pfx, cmd[1])
         if cmd[0] in ok_commands:
             subprocess.call(['xmms2'] + cmd)
             if self.rebuild_list():
