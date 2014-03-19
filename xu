@@ -404,6 +404,9 @@ class Xui(object):
         if isinstance(x, basestring):
             return
         pos = x[u'position']
+        self.update_pos(pos)
+
+    def update_pos(self, pos):
         self.current_pos = pos
         for idx, w in enumerate(self.listbox.body):
             is_focus = idx == pos
@@ -423,9 +426,15 @@ class Xui(object):
 
     def on_playback_current_id(self, v):
         if not v:
+            self.update_current_id(None)
+        else:
+            self.update_current_id(v.value())
+
+    def update_current_id(self, current_id):
+        if not current_id:
             self.current_id = None
         else:
-            self.current_id = v.value()
+            self.current_id = current_id
         if self.current_id:
             self.current_info = self.client.medialib_info(self.current_id)
             log.debug("current_id: " + str(self.current_id))
@@ -585,7 +594,8 @@ class Xui(object):
         self.client.set_on_playlist_changed(self.on_playlist_changed)
         self.client.set_on_playback_current_id(self.on_playback_current_id)
         self.client.set_on_playback_status(self.on_playback_status)
-        self.client.xmms.playback_current_id(cb=self.on_playback_current_id)
+        self.update_current_id(self.client.current_id())
+        self.update_pos(self.client.current_pos())
         self.client.xmms.playlist_current_pos(cb=self.on_pos_changed)
         log.debug("Starting mainloop...")
         self.loop = urwid.MainLoop(self.frame,
