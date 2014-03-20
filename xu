@@ -46,7 +46,7 @@ class Client(object):
         self.conn_cb = None
 
     def connect(self, retry=True):
-        self.xmms = xmmsclient.XMMS("xu0")
+        self.xmms = xmmsclient.XMMSSync("xu0")
         try:
             self.xmms.connect(os.getenv("XMMS_PATH"))
         except IOError, e:
@@ -63,24 +63,12 @@ class Client(object):
             raise XmmsError(e)
         self.conn_cb = xmmsclient.glib.GLibConnector(self.xmms_cb)
 
-    def _sync(self, r):
-        r.wait()
-        if r.iserror():
-            v = r.value()
-            if isinstance(v, basestring):
-                raise XmmsError(v)
-            elif isinstance(v, xmmsclient.XMMSValue):
-                raise XmmsError(v.get_error())
-            else:
-                raise XmmsError(repr(v))
-        return r.value()
-
     def current_id(self):
-        return self._sync(self.xmms.playback_current_id())
+        return self.xmms.playback_current_id()
 
     def current_pos(self):
         try:
-            pos = self._sync(self.xmms.playlist_current_pos())
+            pos = self.xmms.playlist_current_pos()
             if pos:
                 return pos[u'position']
         except XmmsError:
@@ -89,32 +77,32 @@ class Client(object):
 
     def medialib_info(self, track):
         log.debug("Get info: " + repr(track))
-        return self._sync(self.xmms.medialib_get_info(track))
+        return self.xmms.medialib_get_info(track)
 
     def bindata_retrieve(self, hashval):
         log.debug("Bindata retrieve: " + repr(hashval))
-        return self._sync(self.xmms.bindata_retrieve(hashval))
+        return self.xmms.bindata_retrieve(hashval)
 
     def ls(self):
-        return self._sync(self.xmms.playlist_list_entries())
+        return self.xmms.playlist_list_entries()
 
     def play(self):
-        return self._sync(self.xmms.playback_start())
+        return self.xmms.playback_start()
 
     def stop(self):
-        return self._sync(self.xmms.playback_stop())
+        return self.xmms.playback_stop()
 
     def pause(self):
-        return self._sync(self.xmms.playback_pause())
+        return self.xmms.playback_pause()
 
     def tickle(self):
-        return self._sync(self.xmms.playback_tickle())
+        return self.xmms.playback_tickle()
 
     def set_next(self, index):
-        return self._sync(self.xmms.playlist_set_next(index))
+        return self.xmms.playlist_set_next(index)
 
     def status(self):
-        return self._sync(self.xmms.playback_status())
+        return self.xmms.playback_status()
 
     def stopped(self):
         return self.status() == STOPPED
@@ -126,11 +114,11 @@ class Client(object):
         return self.status() == PAUSED
 
     def entry_info(self, name, pos):
-        lst = self._sync(self.xmms.playlist_list_entries(name))
+        lst = self.xmms.playlist_list_entries(name)
         return self.medialib_info(lst[pos])
 
     def playtime(self):
-        return self._sync(self.xmms.playback_playtime())
+        return self.xmms.playback_playtime()
 
     def match(self, artist=None, album=None, title=None):
         if artist:
@@ -149,14 +137,14 @@ class Client(object):
 
         client.query(client.match(album="foo"))
         '''
-        return self._sync(self.xmms.coll_query_ids(coll, order.split()))
+        return self.xmms.coll_query_ids(coll, order.split())
 
     def add_collection(self, coll, order):
         '''coll is a collection object
         order is a string describing how to sort the result
         adds the collection object to the playlist
         '''
-        return self._sync(self.xmms.playlist_add_collection(coll, order.split()))
+        return self.xmms.playlist_add_collection(coll, order.split())
 
     def jump(self, trackid):
         pl = self.ls()
