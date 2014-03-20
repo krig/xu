@@ -29,11 +29,7 @@ if '-d' in sys.argv:
 else:
     log.disable(log.ERROR)
 
-
-class XmmsError(Exception):
-    def __init__(self, msg):
-        Exception.__init__(self, msg)
-
+XmmsError = xmmsclient.sync.XMMSError
 
 class Client(object):
     """
@@ -598,7 +594,10 @@ class Xui(object):
         self.client.set_on_playback_status(self.on_playback_status)
         self.update_current_id(self.client.current_id())
         self.update_pos(self.client.current_pos())
-        self.client.xmms.playlist_current_pos(cb=self.on_pos_changed)
+        try:
+            self.client.xmms.playlist_current_pos(cb=self.on_pos_changed)
+        except XmmsError:
+            pass
         log.debug("Starting mainloop...")
         self.loop = urwid.MainLoop(self.frame,
                                    self.palette,
