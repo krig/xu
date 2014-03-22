@@ -1,19 +1,19 @@
 {% extends "layout.html" %}
 {% block body %}
-
 <div id="topbar">
-<div id="topbar_buttons">
-<a href="/playlist"><i class="fa fa-2x fa-bars"></i></a>
-</div>
-<div id="info"></div>
-<div id="nowplaying"></div>
-
+  <div id="topbar_buttons">
+    <a href="/playlist"><i class="fa fa-2x fa-home fa-fw"></i></a>&nbsp;
+    <a href="#" onclick="$.get('/api/playback/toggle');"><i class="fa fa-2x fa-pause fa-fw"></i></a>&nbsp;
+    <a href="#" onclick="$.get('/api/playback/stop');"><i class="fa fa-2x fa-stop fa-fw"></i></a>&nbsp;
+   </div>
+  <div id="info"></div>
+  <div id="nowplaying"></div>
 </div>
 
 <div id="topspacer"></div>
 <div class="container">
 <div class="albums">
-{% for album in albums %}<img src="{{url_for('static', filename='blank.png')}}" data-original="/api/art/{{album.idx}}" data-idx="{{album.idx}}" class="lazy" width="150" height="150">
+{% for album in albums %}<div class="wrap"><img src="{{url_for('static', filename='blank.png')}}" data-original="/api/art/{{album.idx}}" data-idx="{{album.idx}}" class="lazy" width="150" height="150"></div>
 {% endfor %}
 </div>
 </div>

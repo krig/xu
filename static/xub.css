@@ -1,16 +1,20 @@
 body {
-    background: #121212;
-    color: #ecf0f1;
-    font-family: sans-serif;
+    background: #111;
+    color: #95a5a6;
+    font-family: 'Oswald', sans-serif;
+    font-size: 0.8em;
+    margin: 0px;
+    padding: 0px;
+}
+
+.container {
+    margin: 0px;
+    padding: 0px;
 }
 
 a {
-    color: #3498db;
+    color: #333;
     text-decoration: none;
-}
-
-a:visited {
-    color: #9b59b6;
 }
 
 a:active {
@@ -28,15 +32,12 @@ a:hover {
 
 .albums {
     padding: 0px;
+    text-align: center;
     margin-left: auto;
     margin-right: auto;
 }
 
 .albums img {
-    display: block;
-    float: left;
-    padding: 0px;
-    margin: 0px;
     border-style: none;
 }
 
@@ -67,6 +68,7 @@ color: #ecf0f1;
 background: #222222;
 border-bottom: 1px solid #333333;
 padding: 0px;
+margin: 0px;
 }
 
 #topbar_buttons {
@@ -97,25 +99,67 @@ color: #7f8c8d;
 padding-right: 1em;
 }
 
+#overlay {
+    position: absolute;
+    display: none;
+    width: 150px;
+    height: 150px;
+}
+
+.wrap {
+    display: block;
+    float: left;
+    text-align: center;
+    width: 150px;
+    height: 150px;
+}
 
 #hover {
-position: fixed;
-bottom: 0;
-right: 0;
-display: block;
-text-align: center;
-padding: 2px;
-background: #95a5a6;
-color: #333;
+    position: fixed;
+    top: 36px;
+    right: 8px;
+    display: block;
+    text-align: center;
+    padding: 4px;
+    background: #95a5a6;
+    color: #333;
 }
 
 .playlist_view {
-    width: 75%;
-    margin-left: auto;
-    margin-right: auto;
+    line-height: 1.6em;
+}
+
+.playlist_view a {
+    color: #95a5a6;
+}
+
+.playlist_view a:hover {
+    color: #e74c3c;
+    text-decoration: none;
 }
 
 .current_track {
-    background: #222;
+    font-weight: bold;
+    color: #b5c5c6;
 }
 
+ol {
+}
+
+li {
+    margin-right: 2em;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+.odd {
+    background: #1c1c1c;
+}
+
+.current_art {
+    text-align: center;
+    padding: 16px;
+}
+
+.current_art img {
+ -webkit-box-reflect: below 20px -webkit-linear-gradient(bottom, rgba(255,255,255,0.3) 0%, transparent 20%, transparent 100%);
+}

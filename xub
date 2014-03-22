@@ -118,6 +118,7 @@ class Xmms2(Thread):
                 if album2.album == album['album']:
                     album2.picture = album['picture_front']
                     album2.mime = album['picture_front_mime']
+                    break
             else:
                 album_obj = Album(len(self.albums),
                                   album['album'],
@@ -196,8 +197,15 @@ def fonts(font):
     return send_file(os.path.join("fonts", font), mimetype='application/binary')
 
 
+def code(v):
+    if isinstance(v, unicode):
+        return v.encode('utf-8')
+    return v
+
+
 def clean(mediainfo):
-    return dict((key[1], value) for key, value in mediainfo.iteritems())
+    print mediainfo
+    return dict((code(key[1]), code(value)) for key, value in mediainfo.iteritems())
 
 
 @app.route("/api/current")
@@ -213,10 +221,14 @@ def nowplaying():
         print e
         return json.dumps({"error": str(e)})
 
+
 @app.route("/api/playback/<status>")
 def api_playback(status):
     if status == "toggle":
-        xmms1.xmms.playback_toggle()
+        if xmms1.xmms.playback_status() == 1:
+            xmms1.xmms.playback_pause()
+        else:
+            xmms1.xmms.playback_start()
     elif status == "stop":
         xmms1.xmms.playback_stop()
     return ""
@@ -247,6 +259,21 @@ def album(index):
     except Exception, e:
         print e
     return json.dumps({'error': "Haven't loaded %s yet" % (index)})
+
+
+@app.route("/api/jump/<int:index>")
+def api_jump(index):
+    try:
+        xmms1.xmms.playlist_set_next(index)
+        xmms1.xmms.playback_tickle()
+    except Exception, e:
+        print e
+
+
+@app.route("/api/arthash/<hashval>")
+def api_arthash(hashval):
+    data = os.path.join(BINDATA, hashval)
+    return send_file(data)
 
 
 @app.route("/api/art/<int:index>")

@@ -2,9 +2,9 @@
 {% block body %}
 <div id="topbar">
   <div id="topbar_buttons">
-    <a href="/"><i class="fa fa-2x fa-home"></i></a>&nbsp;
-    <a href="#" onclick="$.get('/api/playback/toggle');"><i class="fa fa-2x fa-pause"></i></a>&nbsp;
-    <a href="#" onclick="$.get('/api/playback/stop');"><i class="fa fa-2x fa-stop"></i></a>
+    <a href="/"><i class="fa fa-2x fa-bars fa-fw"></i></a>&nbsp;
+    <a href="#" onclick="$.get('/api/playback/toggle');"><i class="fa fa-2x fa-pause fa-fw"></i></a>&nbsp;
+    <a href="#" onclick="$.get('/api/playback/stop');"><i class="fa fa-2x fa-stop fa-fw"></i></a>&nbsp;
    </div>
   <div id="info"></div>
   <div id="nowplaying"></div>
@@ -12,7 +12,11 @@
 <div id="topspacer"></div>
 
 <div class="container">
-  <div class="playlist_view">
+  <div class="page_split">
+    <div class="playlist_view">
+    </div>
+    <div class="current_art">
+    </div>
   </div>
 </div>
 
