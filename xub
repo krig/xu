@@ -1,0 +1,116 @@
+#!/usr/bin/env python
+"""
+Album art display web service:
+
+Frontend is a javascript program which displays album art,
+when the album art is clicked, a page is shown with more information
+and options to play or enqueue the given album or individual song.
+The backend connects to xmms2 both to find music and to play music.
+"""
+
+import os
+import json
+import xmmsclient as xm
+import xmmsclient.collections as xc
+from threading import Thread
+from flask import Flask, url_for
+app = Flask(__name__)
+app.config.from_object(__name__)
+
+BINDATA = os.path.expanduser('~/.config/xmms2/bindata')
+
+
+class Album(object):
+    """
+    Represents an album by:
+    artist
+    album
+    picture_front
+    """
+    __slots__ = ('id', 'artist', 'album', 'picture_front')
+
+    def __init__(self, i, artist, album, pic):
+        self.id = i
+        self.artist = artist
+        self.album = album
+        self.picture_front = pic
+
+
+class Xmms2(Thread):
+    def __init__(self):
+        Thread.__init__(self, name="Xmms2")
+        self.scanning = True
+        self.xmms = xm.XMMS("xub0")
+        self.albums = []
+
+    def on_albumlist(self, albums_data):
+        if albums_data.is_error():
+            print albums_data.get_error()
+            self.scanning = False
+            self.xmms.exit_loop()
+        for album in albums_data.value():
+            album_obj = Album(album['id'],
+                              album['artist'],
+                              album['album'],
+                              album['picture_front'])
+            self.albums.append(album_obj)
+
+    def on_added(self, album_data):
+        if album_data.is_error():
+            print album_data.get_error()
+            self.scanning = False
+            self.xmms.exit_loop()
+        data = album_data.value()
+        print "added", data
+
+    def on_changed(self, album_data):
+        if album_data.is_error():
+            print album_data.get_error()
+            self.scanning = False
+            self.xmms.exit_loop()
+        data = album_data.value()
+        print "changed", data
+
+    def run(self):
+        self.xmms.connect(os.getenv("XMMS_PATH"))
+        self.xmms.broadcast_medialib_entry_added(cb=self.on_added)
+        self.xmms.broadcast_medialib_entry_changed(cb=self.on_changed)
+        self.xmms.coll_query_infos(xc.Universe(),
+                                   fields=["id", "artist", "album", "picture_front"],
+                                   groupby=["album"],
+                                   cb=self.on_albumlist)
+        self.xmms.loop()
+
+
+xmms2 = Xmms2()
+xmms2.start()
+
+
+@app.route("/")
+def albums():
+    return open('static/index.html').read()
+
+
+@app.route("/count")
+def count():
+    return json.dumps({'albums': len(xmms2.albums)})
+
+
+@app.route("/album/<int:index>")
+def album(index):
+    if index < len(xmms2.albums):
+        album = xmms2.albums[index]
+        return json.dumps({'artist': album.artist,
+                           'album': album.album,
+                           'picture_front': album.picture_front})
+    return json.dumps({'error': "Haven't loaded %s yet" % (index)})
+
+
+@app.route("/art/<hashval>")
+def albumart(hashval):
+    return open(os.path.join(BINDATA, hashval)).read()
+
+if __name__ == "__main__":
+    app.run()
+    xmms2.xmms.exit_loop()
+    xmms2.scanning = False
