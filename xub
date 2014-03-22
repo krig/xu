@@ -130,8 +130,8 @@ class Xmms2(Thread):
         trackid = album_data.value()
         print "added", trackid
         self.xmms.coll_query_infos(xc.Match(xc.Universe(), field="id", value=unicode(trackid)),
-                                   fields=["album", "picture_front", 'picture_front_mime'],
-                                   groupby=["album"],
+                                   fields=["artist", "album", "picture_front", 'picture_front_mime'],
+                                   groupby=["artist", "album"],
                                    cb=self.on_albumlist_changed)
 
     def on_changed(self, album_data):
@@ -141,8 +141,8 @@ class Xmms2(Thread):
         trackid = album_data.value()
         print "changed", trackid
         self.xmms.coll_query_infos(xc.Match(xc.Universe(), field="id", value=unicode(trackid)),
-                                   fields=["album", "picture_front", 'picture_front_mime'],
-                                   groupby=["album"],
+                                   fields=["artist", "album", "picture_front", 'picture_front_mime'],
+                                   groupby=["artist", "album"],
                                    cb=self.on_albumlist_changed)
 
     def run(self):
@@ -150,8 +150,8 @@ class Xmms2(Thread):
         self.xmms.broadcast_medialib_entry_added(cb=self.on_added)
         self.xmms.broadcast_medialib_entry_changed(cb=self.on_changed)
         self.xmms.coll_query_infos(xc.Universe(),
-                                   fields=["album", "picture_front", 'picture_front_mime'],
-                                   groupby=["album"],
+                                   fields=["artist", "album", "picture_front", 'picture_front_mime'],
+                                   groupby=["artist", "album"],
                                    cb=self.on_albumlist)
         self.xmms.loop()
 
@@ -183,6 +183,14 @@ def enqueue(albumidx):
 def play(albumidx):
     xmms1.play_album(albumidx)
     return ""
+
+
+@app.route("/fonts/<font>")
+def fonts(font):
+    "route as staticish"
+    if '/' in font or '..' in font:
+        return ""
+    return send_file(os.path.join("fonts", font), mimetype='application/binary')
 
 
 @app.route("/nowplaying")
