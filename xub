@@ -167,6 +167,17 @@ def play(albumidx):
     return ""
 
 
+@app.route("/nowplaying")
+def nowplaying():
+    try:
+        now = xmms1.xmms.playback_current_id()
+        info = xmms1.xmms.medialib_get_info(now)
+        return json.dumps(dict((key[1], value) for key, value in info.iteritems()))
+    except Exception, e:
+        print e
+        return json.dumps({"error": str(e)})
+
+
 @app.route("/album/<int:index>")
 def album(index):
     try:

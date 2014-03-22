@@ -31,8 +31,25 @@ $(function() {
         }
     }
 
+    $(document).mousemove( function(e) {
+        $("#hover").css({'top':e.pageY + 12,'left':e.pageX + 12});
+    });
+
     $("img.lazy").click(function() {
         $.getJSON("/album/" + $(this).attr("data-idx"), handleAlbum);
-    });
-    $("img.lazy").lazyload();
+    }).mouseover(function() {
+        $("#hover").show();
+        $.getJSON("/album/" + $(this).attr("data-idx"), function(album) {
+            $("#hover").html(escapeHtml(album.album));
+        });
+    }).mouseout(function() {
+        $("#hover").hide();
+    }).lazyload();
+
+    function updateNowPlaying() {
+        $.getJSON("/nowplaying", function(np) {
+            $("#nowplaying").text(np.artist + ' - ' + np.title);
+        });
+    }
+    setInterval(updateNowPlaying, 1000);
 });

@@ -65,21 +65,32 @@ height: 32px;
 color: #ecf0f1;
 background: #222222;
 border-bottom: 1px solid #333333;
+padding: 0px;
 }
 
 #nowplaying {
-display: block;
-float:left;
-margin-top: 4px;
-margin-left: 20px;
+display: inline;
+float:right;
+height: 32px;
+font-size: small;
+color: #7f8c8d;
 }
 
-
 #info {
+display: inline;
+text-align: left;
+float: left;
+height: 32px;
+font-size: large;
+}
+
+#hover {
+position: absolute;
 display: block;
-width: 50%;
-text-align: center;
-margin-top: 4px;
-margin-left: auto;
-margin-right: auto;
+text-align: right;
+padding: 2px;
+background: #95a5a6;
+color: #333;
+text-overflow: ellipsis;
+white-space: nowrap;
 }
