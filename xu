@@ -22,7 +22,8 @@ INFOLINE = u": = prompt, <enter> = play selected, p = toggle, q = quit"
 STOPPED = 0
 PLAYING = 1
 PAUSED = 2
-
+ART_WIDTH = 16
+ART_RIGHT_PAD = 2
 
 if '-d' in sys.argv:
     log.basicConfig(filename='xu.log', level=log.DEBUG)
@@ -581,7 +582,7 @@ class Xui(object):
         self.listbox = ListBox(SimpleFocusListWalker([]))
         self.albumart = AlbumArt()
         self.rebuild_list()
-        bodysplit = AttrMap(Columns([self.listbox, (20, urwid.Padding(self.albumart, right=1))],
+        bodysplit = AttrMap(Columns([self.listbox, (ART_WIDTH, urwid.Padding(self.albumart, right=ART_RIGHT_PAD))],
                                     min_width=24), 'body')
         self.modeline = Edit(caption=INFOLINE)
         self.frame = Frame(bodysplit,
