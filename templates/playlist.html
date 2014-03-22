@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% block body %}
+<div id="topbar">
+  <div id="topbar_buttons">
+    <a href="/"><i class="fa fa-2x fa-home"></i></a>&nbsp;
+    <a href="#" onclick="$.get('/api/playback/toggle');"><i class="fa fa-2x fa-pause"></i></a>&nbsp;
+    <a href="#" onclick="$.get('/api/playback/stop');"><i class="fa fa-2x fa-stop"></i></a>
+   </div>
+  <div id="info"></div>
+  <div id="nowplaying"></div>
+</div>
+<div id="topspacer"></div>
+
+<div class="container">
+  <div class="playlist_view">
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='pl.js') }}" type="text/javascript"></script>
+{% endblock %}

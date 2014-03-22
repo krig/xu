@@ -18,6 +18,7 @@ app = Flask(__name__)
 app.config.from_object(__name__)
 
 BINDATA = os.path.expanduser('~/.config/xmms2/bindata')
+FIELDS = ["artist", "compilation", "album", "picture_front", 'picture_front_mime']
 
 
 class Album(object):
@@ -100,7 +101,8 @@ class Xmms2(Thread):
         if albums_data.is_error():
             print albums_data.get_error()
             return
-        for album in albums_data.value():
+        albums = sorted(albums_data.value(), key=lambda a: a.get('artist') or a.get('compilation'))
+        for album in albums:
             album_obj = Album(len(self.albums),
                               album['album'],
                               album['picture_front'],
@@ -130,8 +132,8 @@ class Xmms2(Thread):
         trackid = album_data.value()
         print "added", trackid
         self.xmms.coll_query_infos(xc.Match(xc.Universe(), field="id", value=unicode(trackid)),
-                                   fields=["artist", "album", "picture_front", 'picture_front_mime'],
-                                   groupby=["artist", "album"],
+                                   fields=FIELDS,
+                                   groupby=["album"],
                                    cb=self.on_albumlist_changed)
 
     def on_changed(self, album_data):
@@ -141,8 +143,8 @@ class Xmms2(Thread):
         trackid = album_data.value()
         print "changed", trackid
         self.xmms.coll_query_infos(xc.Match(xc.Universe(), field="id", value=unicode(trackid)),
-                                   fields=["artist", "album", "picture_front", 'picture_front_mime'],
-                                   groupby=["artist", "album"],
+                                   fields=FIELDS,
+                                   groupby=["album"],
                                    cb=self.on_albumlist_changed)
 
     def run(self):
@@ -150,8 +152,8 @@ class Xmms2(Thread):
         self.xmms.broadcast_medialib_entry_added(cb=self.on_added)
         self.xmms.broadcast_medialib_entry_changed(cb=self.on_changed)
         self.xmms.coll_query_infos(xc.Universe(),
-                                   fields=["artist", "album", "picture_front", 'picture_front_mime'],
-                                   groupby=["artist", "album"],
+                                   fields=FIELDS,
+                                   groupby=["album"],
                                    cb=self.on_albumlist)
         self.xmms.loop()
 
@@ -164,22 +166,23 @@ xmms1 = Xmms1(xmms2)
 @app.route("/")
 def albums():
     return render_template("index.html",
-                           title="xub (%d albums)" % (len(xmms2.albums)),
+                           title="xub :: albums",
                            albums=xmms2.albums)
 
 
-@app.route("/count")
-def count():
-    return json.dumps({'albums': len(xmms2.albums)})
+@app.route("/playlist")
+def playlist_page():
+    return render_template("playlist.html",
+                           title="xub :: playlist")
 
 
-@app.route("/enqueue/<int:albumidx>")
+@app.route("/api/enqueue/<int:albumidx>")
 def enqueue(albumidx):
     xmms1.enqueue_album(albumidx)
     return ""
 
 
-@app.route("/play/<int:albumidx>")
+@app.route("/api/play/<int:albumidx>")
 def play(albumidx):
     xmms1.play_album(albumidx)
     return ""
@@ -193,21 +196,45 @@ def fonts(font):
     return send_file(os.path.join("fonts", font), mimetype='application/binary')
 
 
-@app.route("/nowplaying")
+def clean(mediainfo):
+    return dict((key[1], value) for key, value in mediainfo.iteritems())
+
+
+@app.route("/api/current")
 def nowplaying():
     try:
         now = xmms1.xmms.playback_current_id()
         info = xmms1.xmms.medialib_get_info(now)
         status = xmms1.xmms.playback_status()
-        ret = dict((key[1], value) for key, value in info.iteritems())
+        ret = clean(info)
         ret[u'status'] = status
         return json.dumps(ret)
     except Exception, e:
         print e
         return json.dumps({"error": str(e)})
 
+@app.route("/api/playback/<status>")
+def api_playback(status):
+    if status == "toggle":
+        xmms1.xmms.playback_toggle()
+    elif status == "stop":
+        xmms1.xmms.playback_stop()
+    return ""
 
-@app.route("/album/<int:index>")
+
+@app.route("/api/playlist")
+def playlist():
+    try:
+        pos = xmms1.xmms.playlist_current_pos()
+        entries = xmms1.xmms.playlist_list_entries()
+        pos['playlist'] = [clean(xmms1.xmms.medialib_get_info(entry)) for entry in entries]
+        return json.dumps(pos)
+    except Exception, e:
+        print e
+        return json.dumps({"error": str(e)})
+
+
+@app.route("/api/album/<int:index>")
 def album(index):
     try:
         if index < len(xmms2.albums):
@@ -222,7 +249,7 @@ def album(index):
     return json.dumps({'error': "Haven't loaded %s yet" % (index)})
 
 
-@app.route("/art/<int:index>")
+@app.route("/api/art/<int:index>")
 def albumart(index):
     try:
         index = int(index)

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ title }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='font-awesome.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='xub.css') }}">
+</head>
+<body>
+
+{% block body %}{% endblock %}
+
+<script src="{{ url_for('static', filename='jquery-2.1.0.min.js') }}" type="text/javascript"></script>
+<script src="{{ url_for('static', filename='jquery.lazyload.min.js') }}" type="text/javascript"></script>
+<script src="{{ url_for('static', filename='xub.js') }}" type="text/javascript"></script>
+
+{% block scripts %}{% endblock %}
+
+</body>
+</html>
