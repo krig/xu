@@ -1,0 +1,85 @@
+body {
+    background: #121212;
+    color: #ecf0f1;
+    font-family: 'Ubuntu', sans-serif;
+}
+
+a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+a:visited {
+    color: #9b59b6;
+}
+
+a:active {
+    color: #f1c40f;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+.container {
+    width: 100%;
+}
+
+.albums {
+    padding: 0px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.albums img {
+    display: block;
+    float: left;
+    padding: 0px;
+    margin: 0px;
+    border-style: none;
+}
+
+.albuminfo {
+    padding: 0px;
+    margin: 0px;
+}
+
+.clicked {
+    padding: 8px;
+    border: 4px solid red;
+}
+
+#topspacer {
+padding: 0px;
+margin: 0px;
+width: 100%;
+height: 32px;
+}
+
+#topbar {
+position: fixed;
+left: 0;
+top: 0;
+width: 100%;
+height: 32px;
+color: #ecf0f1;
+background: #222222;
+border-bottom: 1px solid #333333;
+}
+
+#nowplaying {
+display: block;
+float:left;
+margin-top: 4px;
+margin-left: 20px;
+}
+
+
+#info {
+display: block;
+width: 50%;
+text-align: center;
+margin-top: 4px;
+margin-left: auto;
+margin-right: auto;
+}

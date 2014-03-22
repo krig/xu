@@ -13,7 +13,7 @@ import json
 import xmmsclient as xm
 import xmmsclient.collections as xc
 from threading import Thread
-from flask import Flask, url_for
+from flask import Flask, render_template, send_file
 app = Flask(__name__)
 app.config.from_object(__name__)
 
@@ -23,17 +23,73 @@ BINDATA = os.path.expanduser('~/.config/xmms2/bindata')
 class Album(object):
     """
     Represents an album by:
-    artist
+    index
     album
     picture_front
+    picture_mime
     """
-    __slots__ = ('id', 'artist', 'album', 'picture_front')
+    __slots__ = ('idx', 'album', 'picture_front', 'picture_mime')
 
-    def __init__(self, i, artist, album, pic):
-        self.id = i
-        self.artist = artist
+    def __init__(self, idx, album, pic, mime):
+        self.idx = idx
         self.album = album
         self.picture_front = pic
+        self.picture_mime = mime
+
+    def __str__(self):
+        return self.album.encode('utf-8')
+
+
+class Xmms1(object):
+    def __init__(self, xmms2):
+        self.xmms = xm.XMMSSync("xub1")
+        self.xmms.connect(os.getenv("XMMS_PATH"))
+        self.albums = xmms2.albums
+
+    def enqueue_album(self, index):
+        print "index:", index
+        print "albums:", len(self.albums)
+        if int(index) < len(self.albums):
+            try:
+                album = self.albums[index]
+                print "album name:", album.album
+                ids = self.xmms.coll_query_ids(
+                    xc.Match(xc.Universe(),
+                             field="album", value=album.album))
+                print "album:", album, ":", ids
+                for track in ids:
+                    self.xmms.playlist_add_id(track)
+            except Exception, e:
+                print e
+
+    def play_album(self, index):
+        print "index:", index
+        print "albums:", len(self.albums)
+        if int(index) < len(self.albums):
+            try:
+                album = self.albums[index]
+                print "album name:", album.album
+                ids = self.xmms.coll_query_ids(
+                    xc.Match(xc.Universe(),
+                             field="album", value=album.album))
+                print "album:", album, ":", ids
+                self.xmms.playlist_clear()
+                for track in ids:
+                    self.xmms.playlist_add_id(track)
+                self.xmms.playlist_set_next(0)
+                if self.xmms.playback_status() == 1:
+                    self.xmms.playback_tickle()
+                else:
+                    self.xmms.playback_start()
+            except Exception, e:
+                print e
+
+    def infos_for_album(self, album):
+        return self.xmms.coll_query_infos(
+            xc.Match(xc.Universe(),
+                     field="album",
+                     value=album.album),
+            ["artist", "collection", "album", "tracknr", "id"])
 
 
 class Xmms2(Thread):
@@ -49,10 +105,10 @@ class Xmms2(Thread):
             self.scanning = False
             self.xmms.exit_loop()
         for album in albums_data.value():
-            album_obj = Album(album['id'],
-                              album['artist'],
+            album_obj = Album(len(self.albums),
                               album['album'],
-                              album['picture_front'])
+                              album['picture_front'],
+                              album['picture_mime'])
             self.albums.append(album_obj)
 
     def on_added(self, album_data):
@@ -76,7 +132,7 @@ class Xmms2(Thread):
         self.xmms.broadcast_medialib_entry_added(cb=self.on_added)
         self.xmms.broadcast_medialib_entry_changed(cb=self.on_changed)
         self.xmms.coll_query_infos(xc.Universe(),
-                                   fields=["id", "artist", "album", "picture_front"],
+                                   fields=["album", "picture_front", 'picture_mime'],
                                    groupby=["album"],
                                    cb=self.on_albumlist)
         self.xmms.loop()
@@ -84,11 +140,14 @@ class Xmms2(Thread):
 
 xmms2 = Xmms2()
 xmms2.start()
+xmms1 = Xmms1(xmms2)
 
 
 @app.route("/")
 def albums():
-    return open('static/index.html').read()
+    return render_template("index.html",
+                           title="xub (%d albums)" % (len(xmms2.albums)),
+                           albums=xmms2.albums)
 
 
 @app.route("/count")
@@ -96,19 +155,50 @@ def count():
     return json.dumps({'albums': len(xmms2.albums)})
 
 
+@app.route("/enqueue/<int:albumidx>")
+def enqueue(albumidx):
+    xmms1.enqueue_album(albumidx)
+    return ""
+
+
+@app.route("/play/<int:albumidx>")
+def play(albumidx):
+    xmms1.play_album(albumidx)
+    return ""
+
+
 @app.route("/album/<int:index>")
 def album(index):
-    if index < len(xmms2.albums):
-        album = xmms2.albums[index]
-        return json.dumps({'artist': album.artist,
-                           'album': album.album,
-                           'picture_front': album.picture_front})
+    try:
+        if index < len(xmms2.albums):
+            album = xmms2.albums[index]
+            infos = xmms1.infos_for_album(album)
+
+            return json.dumps({'album': album.album,
+                               'index': album.idx,
+                               'tracks': infos})
+    except Exception, e:
+        print e
     return json.dumps({'error': "Haven't loaded %s yet" % (index)})
 
 
-@app.route("/art/<hashval>")
-def albumart(hashval):
-    return open(os.path.join(BINDATA, hashval)).read()
+@app.route("/art/<int:index>")
+def albumart(index):
+    try:
+        index = int(index)
+        if index >= len(xmms2.albums):
+            raise ValueError("index out of range: %s" % (index))
+        album = xmms2.albums[index]
+        if not album.picture_front:
+            raise ValueError("album has no art: %s" % (index))
+        data = os.path.join(BINDATA, album.picture_front)
+        mime = album.picture_mime
+        return send_file(data, mimetype=mime)
+    except Exception, e:
+        print e
+        data = 'static/none.jpg'
+        mime = 'image/jpeg'
+        return send_file(data, mimetype=mime)
 
 if __name__ == "__main__":
     app.run()
