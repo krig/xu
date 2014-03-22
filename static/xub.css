@@ -85,12 +85,12 @@ font-size: large;
 }
 
 #hover {
-position: absolute;
+position: fixed;
+bottom: 0;
+right: 0;
 display: block;
-text-align: right;
+text-align: center;
 padding: 2px;
 background: #95a5a6;
 color: #333;
-text-overflow: ellipsis;
-white-space: nowrap;
 }

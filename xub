@@ -25,16 +25,16 @@ class Album(object):
     Represents an album by:
     index
     album
-    picture_front
-    picture_mime
+    picture
+    mime
     """
-    __slots__ = ('idx', 'album', 'picture_front', 'picture_mime')
+    __slots__ = ('idx', 'album', 'picture', 'mime')
 
     def __init__(self, idx, album, pic, mime):
         self.idx = idx
         self.album = album
-        self.picture_front = pic
-        self.picture_mime = mime
+        self.picture = pic
+        self.mime = mime
 
     def __str__(self):
         return self.album.encode('utf-8')
@@ -76,11 +76,9 @@ class Xmms1(object):
                 self.xmms.playlist_clear()
                 for track in ids:
                     self.xmms.playlist_add_id(track)
+                self.xmms.playback_stop()
                 self.xmms.playlist_set_next(0)
-                if self.xmms.playback_status() == 1:
-                    self.xmms.playback_tickle()
-                else:
-                    self.xmms.playback_start()
+                self.xmms.playback_start()
             except Exception, e:
                 print e
 
@@ -95,44 +93,64 @@ class Xmms1(object):
 class Xmms2(Thread):
     def __init__(self):
         Thread.__init__(self, name="Xmms2")
-        self.scanning = True
         self.xmms = xm.XMMS("xub0")
         self.albums = []
 
     def on_albumlist(self, albums_data):
         if albums_data.is_error():
             print albums_data.get_error()
-            self.scanning = False
-            self.xmms.exit_loop()
+            return
         for album in albums_data.value():
             album_obj = Album(len(self.albums),
                               album['album'],
                               album['picture_front'],
-                              album['picture_mime'])
+                              album['picture_front_mime'])
             self.albums.append(album_obj)
+
+    def on_albumlist_changed(self, albums_data):
+        if albums_data.is_error():
+            print albums_data.get_error()
+            return
+        for album in albums_data.value():
+            for album2 in self.albums:
+                if album2.album == album['album']:
+                    album2.picture = album['picture_front']
+                    album2.mime = album['picture_front_mime']
+            else:
+                album_obj = Album(len(self.albums),
+                                  album['album'],
+                                  album['picture_front'],
+                                  album['picture_front_mime'])
+                self.albums.append(album_obj)
 
     def on_added(self, album_data):
         if album_data.is_error():
             print album_data.get_error()
-            self.scanning = False
-            self.xmms.exit_loop()
-        data = album_data.value()
-        print "added", data
+            return
+        trackid = album_data.value()
+        print "added", trackid
+        self.xmms.coll_query_infos(xc.Match(xc.Universe(), field="id", value=unicode(trackid)),
+                                   fields=["album", "picture_front", 'picture_front_mime'],
+                                   groupby=["album"],
+                                   cb=self.on_albumlist_changed)
 
     def on_changed(self, album_data):
         if album_data.is_error():
             print album_data.get_error()
-            self.scanning = False
-            self.xmms.exit_loop()
-        data = album_data.value()
-        print "changed", data
+            return
+        trackid = album_data.value()
+        print "changed", trackid
+        self.xmms.coll_query_infos(xc.Match(xc.Universe(), field="id", value=unicode(trackid)),
+                                   fields=["album", "picture_front", 'picture_front_mime'],
+                                   groupby=["album"],
+                                   cb=self.on_albumlist_changed)
 
     def run(self):
         self.xmms.connect(os.getenv("XMMS_PATH"))
         self.xmms.broadcast_medialib_entry_added(cb=self.on_added)
         self.xmms.broadcast_medialib_entry_changed(cb=self.on_changed)
         self.xmms.coll_query_infos(xc.Universe(),
-                                   fields=["album", "picture_front", 'picture_mime'],
+                                   fields=["album", "picture_front", 'picture_front_mime'],
                                    groupby=["album"],
                                    cb=self.on_albumlist)
         self.xmms.loop()
@@ -172,7 +190,10 @@ def nowplaying():
     try:
         now = xmms1.xmms.playback_current_id()
         info = xmms1.xmms.medialib_get_info(now)
-        return json.dumps(dict((key[1], value) for key, value in info.iteritems()))
+        status = xmms1.xmms.playback_status()
+        ret = dict((key[1], value) for key, value in info.iteritems())
+        ret[u'status'] = status
+        return json.dumps(ret)
     except Exception, e:
         print e
         return json.dumps({"error": str(e)})
@@ -200,10 +221,11 @@ def albumart(index):
         if index >= len(xmms2.albums):
             raise ValueError("index out of range: %s" % (index))
         album = xmms2.albums[index]
-        if not album.picture_front:
-            raise ValueError("album has no art: %s" % (index))
-        data = os.path.join(BINDATA, album.picture_front)
-        mime = album.picture_mime
+        if not album.picture:
+            raise ValueError("album has no art: %s %s" % (index, album.album.encode('utf-8')))
+        data = os.path.join(BINDATA, album.picture)
+        mime = album.mime
+        print data, mime
         return send_file(data, mimetype=mime)
     except Exception, e:
         print e
@@ -214,4 +236,3 @@ def albumart(index):
 if __name__ == "__main__":
     app.run()
     xmms2.xmms.exit_loop()
-    xmms2.scanning = False

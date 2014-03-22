@@ -41,10 +41,6 @@ $(function() {
         $.get('/play/' + album.index);
     }
 
-    $(document).mousemove( function(e) {
-        $("#hover").css({'top':e.pageY + 12,'left':e.pageX + 12});
-    });
-
     $("img.lazy").click(function() {
         $.getJSON("/album/" + $(this).attr("data-idx"), handleAlbum);
     }).dblclick(function() {
@@ -60,7 +56,15 @@ $(function() {
 
     function updateNowPlaying() {
         $.getJSON("/nowplaying", function(np) {
-            $("#nowplaying").text(np.artist + ' - ' + np.title);
+            if ('error' in np) {
+                $("#nowplaying").html('<i class="fa fa-stop"></i>');
+            } else if (np.status == 1) {
+                $("#nowplaying").html('<i class="fa fa-music"></i> ' + np.artist + ' - <em>' + np.title + '</em>');
+            } else if (np.status == 2) {
+                $("#nowplaying").html('<i class="fa fa-pause"></i> ' + np.artist + ' - <em>' + np.title + '</em>');
+            } else {
+                $("#nowplaying").html('<i class="fa fa-stop"></i> ' + np.artist + ' - <em>' + np.title + '</em>');
+            }
         });
     }
     setInterval(updateNowPlaying, 1000);
