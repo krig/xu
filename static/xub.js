@@ -14,21 +14,31 @@ $(function() {
         });
     }
 
-    function handleAlbum(album) {
+    function showAlbum(album) {
         if ("error" in album) {
-            $("#info").html("<b>Error: " + escapeHtml(album.error) + "</b>");
+            return "<b>Error: " + escapeHtml(album.error) + "</b>";
         } else if (album.tracks.length == 0) {
-            $("#info").html("<b>Album " + escapeHtml(album.album) + " has no tracks!</b>");
+            return "<b>Album " + escapeHtml(album.album) + " has no tracks!</b>";
         } else {
             var tracks = album.tracks;
             if (tracks[0].artist != null) {
-                $("#info").html(escapeHtml(tracks[0].artist + " - " + tracks[0].album));
+                return escapeHtml(tracks[0].artist + " - " + tracks[0].album);
             } else {
-                $("#info").html(escapeHtml(tracks[0].collection + " - " + tracks[0].album));
+                return escapeHtml(tracks[0].collection + " - " + tracks[0].album);
             }
-            $("#info").append('&nbsp;<a href="#" onclick="$.get(\'/play/' + album.index + '\')"><i class="fa fa-play"></i></a>');
-            $("#info").append('&nbsp;<a href="#" onclick="$.get(\'/enqueue/' + album.index + '\')"><i class="fa fa-plus"></i></a>');
         }
+    }
+
+    function handleAlbum(album) {
+        var desc = showAlbum(album);
+        $("#info").html(desc).append(
+            '&nbsp;<a href="#" onclick="$.get(\'/play/' + album.index + '\')"><i class="fa fa-play"></i></a>').append(
+                '&nbsp;<a href="#" onclick="$.get(\'/enqueue/' + album.index + '\')"><i class="fa fa-plus"></i></a>');
+    }
+
+    function playAlbum(album) {
+        handleAlbum(album);
+        $.get('/play/' + album.index);
     }
 
     $(document).mousemove( function(e) {
@@ -37,10 +47,12 @@ $(function() {
 
     $("img.lazy").click(function() {
         $.getJSON("/album/" + $(this).attr("data-idx"), handleAlbum);
+    }).dblclick(function() {
+        $.getJSON("/album/" + $(this).attr("data-idx"), playAlbum);
     }).mouseover(function() {
         $("#hover").show();
         $.getJSON("/album/" + $(this).attr("data-idx"), function(album) {
-            $("#hover").html(escapeHtml(album.album));
+            $("#hover").html(showAlbum(album));
         });
     }).mouseout(function() {
         $("#hover").hide();
