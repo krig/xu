@@ -16,8 +16,8 @@ $(function() {
 
     function handleAlbum(album) {
         $("#overlay").html(
-            '&nbsp;<a href="#" onclick="$.get(\'/api/play/' + album.index + '\')"><i class="fa fa-play"></i></a>').append(
-                '&nbsp;<a href="#" onclick="$.get(\'/api/enqueue/' + album.index + '\')"><i class="fa fa-plus"></i></a>');
+            '&nbsp;<a href="#" onclick="$.get(\'/api/play/' + album.index + '\')"><i class="fa fa-3x fa-play"></i></a>').append(
+                '&nbsp;<a href="#" onclick="$.get(\'/api/enqueue/' + album.index + '\')"><i class="fa fa-3x fa-plus"></i></a>');
     }
 
     function playAlbum(album) {
@@ -26,17 +26,21 @@ $(function() {
     }
 
     $("img.lazy").click(function() {
-        $.getJSON("/api/album/" + $(this).attr("data-idx"), handleAlbum);
     }).dblclick(function() {
         $.getJSON("/api/album/" + $(this).attr("data-idx"), playAlbum);
-    }).mouseover(function() {
+    }).mouseenter(function() {
+        $("#overlay").appendTo($(this).parent()).fadeIn();//.css("display", "block");
+        $.getJSON("/api/album/" + $(this).attr("data-idx"), handleAlbum);
         $("#hover").show();
         $.getJSON("/api/album/" + $(this).attr("data-idx"), function(album) {
             $("#hover").html(showAlbum(album));
         });
-    }).mouseout(function() {
-        $("#hover").hide();
     }).lazyload();
+
+    $("#overlay").mouseleave(function() {
+        $(this).hide();
+        $("#hover").hide();
+    });
 
     function updateNowPlaying() {
         $.getJSON("/api/current", function(np) {

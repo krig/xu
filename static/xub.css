@@ -102,11 +102,15 @@ padding-right: 1em;
 #overlay {
     position: absolute;
     display: none;
+    left: 0;
+    top: 0;
+    line-height: 150px;
     width: 150px;
     height: 150px;
 }
 
 .wrap {
+    position: relative;
     display: block;
     float: left;
     text-align: center;
@@ -164,5 +168,5 @@ li {
 }
 
 .current_art img {
- -webkit-box-reflect: below 20px -webkit-linear-gradient(bottom, rgba(255,255,255,0.3) 0%, transparent 20%, transparent 100%);
+ -webkit-box-reflect: below 5px -webkit-linear-gradient(bottom, rgba(255,255,255,0.3) 0%, transparent 26%, transparent 100%);
 }

@@ -9,6 +9,7 @@ The backend connects to xmms2 both to find music and to play music.
 """
 
 import os
+import re
 import json
 import xmmsclient as xm
 import xmmsclient.collections as xc
@@ -204,7 +205,6 @@ def code(v):
 
 
 def clean(mediainfo):
-    print mediainfo
     return dict((code(key[1]), code(value)) for key, value in mediainfo.iteritems())
 
 
@@ -238,6 +238,10 @@ def api_playback(status):
 def playlist():
     try:
         pos = xmms1.xmms.playlist_current_pos()
+    except Exception, e:
+        print e
+        pos = {'position': -1}
+    try:
         entries = xmms1.xmms.playlist_list_entries()
         pos['playlist'] = [clean(xmms1.xmms.medialib_get_info(entry)) for entry in entries]
         return json.dumps(pos)
@@ -270,9 +274,21 @@ def api_jump(index):
         print e
 
 
+@app.route("/api/clear")
+def api_clear():
+    try:
+        xmms1.xmms.playlist_clear()
+        return ""
+    except Exception, e:
+        print e
+
+
 @app.route("/api/arthash/<hashval>")
 def api_arthash(hashval):
-    data = os.path.join(BINDATA, hashval)
+    if re.match(r'^[0-9a-f]+$', hashval):
+        data = os.path.join(BINDATA, hashval)
+    else:
+        data = 'static/none.jpg'
     return send_file(data)
 
 
@@ -287,7 +303,6 @@ def albumart(index):
             raise ValueError("album has no art: %s %s" % (index, album.album.encode('utf-8')))
         data = os.path.join(BINDATA, album.picture)
         mime = album.mime
-        print data, mime
         return send_file(data, mimetype=mime)
     except Exception, e:
         print e

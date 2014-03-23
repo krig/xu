@@ -1,36 +1,34 @@
-$(function() {
-    function rebuildPlaylist() {
-        $.getJSON("/api/playlist", function(pl) {
-            console.log(pl);
+function rebuildPlaylist() {
+    $.getJSON("/api/playlist", function(pl) {
+        if ("error" in pl) {
             $(".playlist_view").html('<ol></ol>');
-            var lst = $(".playlist_view ol");
-            var curr = pl.position;
-            $.each(pl.playlist, function(i, entry) {
-                var song = "<a href='#'>" + escapeHtml(getPerformer(entry) + ' - ' + entry.title) + "</a>";
-                if ((i % 2) == 0 && curr == i) {
-                    lst.append('<li class="odd current_track" data-index=' + i + '>' + song + '</li>');
-                } else if (curr == i) {
-                    lst.append('<li class="current_track" data-index=' + i + '>' + song + '</li>');
-                } else if ((i % 2) == 0) {
-                    lst.append('<li class="odd" data-index=' + i + '>' + song + '</li>');
-                } else {
-                    lst.append('<li data-index=' + i + '>' + song + '</li>');
-                }
-            });
+            $('.current_art').html("");
+            return;
+        }
 
-            $('li').dblclick(function() {
-                $.get('/api/jump/' + $(this).attr('data-index'));
-            });
-
-            if (curr != undefined && curr != null) {
-                if ('picture_front' in pl.playlist[curr]) {
-                    $('.current_art').html("<img src='/api/arthash/" + pl.playlist[curr].picture_front + "'>");
-;
-                }
+        $(".playlist_view").html('<ol></ol>');
+        var lst = $(".playlist_view ol");
+        var curr = pl.position;
+        $.each(pl.playlist, function(i, entry) {
+            var song = "<a href='#'>" + escapeHtml(getPerformer(entry) + ' - ' + entry.title) + "</a>";
+            if ((i % 2) == 0 && curr == i) {
+                lst.append('<li class="odd current_track" data-index=' + i + '>' + song + '</li>');
+            } else if (curr == i) {
+                lst.append('<li class="current_track" data-index=' + i + '>' + song + '</li>');
+            } else if ((i % 2) == 0) {
+                lst.append('<li class="odd" data-index=' + i + '>' + song + '</li>');
+            } else {
+                lst.append('<li data-index=' + i + '>' + song + '</li>');
             }
         });
-    }
 
+        $('li').dblclick(function() {
+            $.get('/api/jump/' + $(this).attr('data-index'));
+        });
+    });
+}
+
+$(function() {
     rebuildPlaylist();
 
     var nowPlaying = null;
@@ -52,8 +50,22 @@ $(function() {
                 }
                 $("#nowplaying").html('<i class="' + statuscls + '"></i> ' + song);
             }
+            if (nowPlaying != null && 'picture_front' in np) {
+                $('.current_art').html("<img src='/api/arthash/" + np.picture_front + "'>");
+                ;
+            }
             if (wasPlaying != nowPlaying) {
                 rebuildPlaylist();
+
+                if (nowPlaying != null) {
+                    if ("picture_front" in np) {
+                        $('.current_art').html("<img src='/api/arthash/" + np.picture_front + "'>");
+                    } else {
+                        $('.current_art').html("<img src='/api/arthash/null'>");
+                    }
+                } else {
+                    $('.current_art').html("<img src='/api/arthash/null'>");
+                }
             }
         });
     }
