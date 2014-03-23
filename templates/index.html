@@ -14,7 +14,7 @@
 <div id="topspacer"></div>
 <div class="container">
 <div class="albums">
-{% for album in albums %}<div class="wrap"><img src="{{url_for('static', filename='blank.png')}}" data-original="/api/art/{{album.idx}}" data-idx="{{album.idx}}" class="lazy" width="150" height="150"></div>
+{% for album in albums %}<div class="wrap"><img src="{{url_for('static', filename='blank.png')}}" data-original="/api/art/{{album.idx}}?{{album.album|urlencode}}" data-idx="{{album.idx}}" class="lazy" width="150" height="150"></div>
 {% endfor %}
 </div>
 </div>

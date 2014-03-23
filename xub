@@ -124,6 +124,7 @@ class Xmms2(Thread):
                     album2.mime = album['picture_front_mime']
                     break
             else:
+                log.debug("New album: %s", album)
                 album_obj = Album(len(self.albums),
                                   album['album'],
                                   album['picture_front'],
