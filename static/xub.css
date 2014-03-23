@@ -62,6 +62,7 @@ height: 32px;
 position: fixed;
 left: 0;
 top: 0;
+text-align: center;
 width: 100%;
 height: 32px;
 color: #ecf0f1;
@@ -70,34 +71,22 @@ border-bottom: 1px solid #333333;
 padding: 0px;
 margin: 0px;
 z-index: 10;
+overflow: hidden;
 }
 
 #topbar_buttons {
-    display: inline;
     float: left;
     height: 32px;
     line-height: 40px;
 }
 
-#info {
-display: inline;
-float: left;
-text-align: left;
-vertical-align: middle;
-height: 32px;
-line-height: 32px;
-font-size: large;
-}
-
-
 #nowplaying {
-display: inline;
-float:right;
-vertical-align: middle;
-height: 32px;
-line-height: 32px;
-color: #7f8c8d;
-padding-right: 1em;
+    float: right;
+    vertical-align: middle;
+    height: 32px;
+    line-height: 32px;
+    color: #7f8c8d;
+    padding-right: 1em;
 }
 
 #overlay {
@@ -170,4 +159,70 @@ li {
 
 .current_art img {
  -webkit-box-reflect: below 5px -webkit-linear-gradient(bottom, rgba(255,255,255,0.3) 0%, transparent 26%, transparent 100%);
+}
+
+#info {
+    display: inline-block;
+    text-align: center;
+    margin: 0 auto;
+}
+
+progress,          /* All HTML5 progress enabled browsers */
+progress[role]     /* polyfill */
+{
+
+	/* Turns off styling - not usually needed, but good to know. */
+	appearance: none;
+	-moz-appearance: none;
+	-webkit-appearance: none;
+
+	/* gets rid of default border in Firefox and Opera. */ 
+	border: none;
+
+	/* Needs to be in here for Safari polyfill so background images work as expected. */
+	background-size: auto;
+	
+	/* Dimensions */
+	height: 2px;
+    width: 256px;
+}
+
+/* Polyfill */
+progress[role]:after {
+	background-image: none; /* removes default background from polyfill */
+}
+
+/* Ensure fallback text doesn't appear in polyfill */
+progress[role] strong {
+	display: none;
+}
+
+progress,                          /* Firefox  */ 
+progress[role][aria-valuenow] {    /* Polyfill */
+   background: #333 !important; /* !important is needed by the polyfill */
+}
+
+/* Chrome */
+progress::-webkit-progress-bar {
+    background: #333;
+}
+
+/* IE10 */
+progress {
+    color: #d35400;
+}
+
+/* Firefox */
+progress::-moz-progress-bar { 
+    background: #d35400;	
+}
+
+/* Chrome */
+progress::-webkit-progress-value {
+    background: #d35400;
+}
+
+/* Polyfill */
+progress[aria-valuenow]:before  {
+    background: #d35400;
 }

@@ -53,6 +53,7 @@ $(function() {
                     statuscls = "fa fa-pause";
                 }
                 $("#nowplaying").html('<i class="' + statuscls + '"></i> ' + song);
+                $("progress").val(np.playtime / np.duration * 100);
             }
         });
     }

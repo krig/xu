@@ -49,6 +49,7 @@ $(function() {
                     statuscls = "fa fa-pause";
                 }
                 $("#nowplaying").html('<i class="' + statuscls + '"></i> ' + song);
+                $("progress").val(np.playtime / np.duration * 100);
             }
             if (nowPlaying != null && 'picture_front' in np) {
                 $('.current_art').html("<img src='/api/arthash/" + np.picture_front + "'>");

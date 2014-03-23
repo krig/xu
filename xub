@@ -214,8 +214,10 @@ def nowplaying():
         now = xmms1.xmms.playback_current_id()
         info = xmms1.xmms.medialib_get_info(now)
         status = xmms1.xmms.playback_status()
+        playtime = xmms1.xmms.playback_playtime()
         ret = clean(info)
         ret[u'status'] = status
+        ret[u'playtime'] = playtime
         return json.dumps(ret)
     except Exception, e:
         print e
