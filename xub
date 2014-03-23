@@ -163,7 +163,6 @@ class Xmms2(Thread):
 
 
 xmms2 = Xmms2()
-xmms2.start()
 xmms1 = Xmms1(xmms2)
 
 
@@ -356,5 +355,19 @@ def albumart(index):
         return send_file(data, mimetype=mime)
 
 if __name__ == "__main__":
-    app.run()
+    import argparse
+    parser = argparse.ArgumentParser(description='XMMS2 Web UI')
+    parser.add_argument('--host', dest='host', action='store',
+                        default='127.0.0.1',
+                        help='IP address to serve on')
+    parser.add_argument('--port', dest='port', action='store',
+                        default=5000, type=int,
+                        help='Port to serve on')
+    parser.add_argument('--debug', dest='debug', action='store_true',
+                        help='Enable debugging')
+
+    args = parser.parse_args()
+
+    xmms2.start()
+    app.run(host=args.host, port=args.port, debug=args.debug)
     xmms2.xmms.exit_loop()
