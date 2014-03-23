@@ -10,6 +10,7 @@ The backend connects to xmms2 both to find music and to play music.
 
 import os
 import re
+import urllib
 import json
 import xmmsclient as xm
 import xmmsclient.collections as xc
@@ -20,6 +21,8 @@ app.config.from_object(__name__)
 
 BINDATA = os.path.expanduser('~/.config/xmms2/bindata')
 FIELDS = ["artist", "compilation", "album", "picture_front", 'picture_front_mime']
+
+log = app.logger
 
 
 class Album(object):
@@ -49,20 +52,20 @@ class Xmms1(object):
         self.albums = xmms2.albums
 
     def enqueue_album(self, index):
-        print "index:", index
-        print "albums:", len(self.albums)
+        log.debug("index: %s", index)
+        log.debug("albums: %s", len(self.albums))
         if int(index) < len(self.albums):
             try:
                 album = self.albums[index]
-                print "album name:", album.album
+                log.debug("album name: %s", album.album)
                 ids = self.xmms.coll_query_ids(
                     xc.Match(xc.Universe(),
                              field="album", value=album.album))
-                print "album:", album, ":", ids
+                log.debug("album: %s: %s", album, ids)
                 for track in ids:
                     self.xmms.playlist_add_id(track)
             except Exception, e:
-                print e
+                log.exception(e)
 
     def play_album(self, index):
         print "index:", index
@@ -82,14 +85,14 @@ class Xmms1(object):
                 self.xmms.playlist_set_next(0)
                 self.xmms.playback_start()
             except Exception, e:
-                print e
+                log.exception(e)
 
     def infos_for_album(self, album):
         return self.xmms.coll_query_infos(
             xc.Match(xc.Universe(),
                      field="album",
                      value=album.album),
-            ["artist", "collection", "album", "tracknr", "id"])
+            ["artist", "collection", "album", "tracknr", "id", "url"])
 
 
 class Xmms2(Thread):
@@ -100,7 +103,7 @@ class Xmms2(Thread):
 
     def on_albumlist(self, albums_data):
         if albums_data.is_error():
-            print albums_data.get_error()
+            log.error("XMMS2 error: %s", albums_data.get_error())
             return
         albums = sorted(albums_data.value(), key=lambda a: a.get('artist') or a.get('compilation'))
         for album in albums:
@@ -112,7 +115,7 @@ class Xmms2(Thread):
 
     def on_albumlist_changed(self, albums_data):
         if albums_data.is_error():
-            print albums_data.get_error()
+            log.error("XMMS2 error: %s", albums_data.get_error())
             return
         for album in albums_data.value():
             for album2 in self.albums:
@@ -129,10 +132,9 @@ class Xmms2(Thread):
 
     def on_added(self, album_data):
         if album_data.is_error():
-            print album_data.get_error()
+            log.error("XMMS2 error: %s", album_data.get_error())
             return
         trackid = album_data.value()
-        print "added", trackid
         self.xmms.coll_query_infos(xc.Match(xc.Universe(), field="id", value=unicode(trackid)),
                                    fields=FIELDS,
                                    groupby=["album"],
@@ -140,10 +142,9 @@ class Xmms2(Thread):
 
     def on_changed(self, album_data):
         if album_data.is_error():
-            print album_data.get_error()
+            log.error("XMMS2 error: %s", album_data.get_error())
             return
         trackid = album_data.value()
-        print "changed", trackid
         self.xmms.coll_query_infos(xc.Match(xc.Universe(), field="id", value=unicode(trackid)),
                                    fields=FIELDS,
                                    groupby=["album"],
@@ -220,7 +221,7 @@ def nowplaying():
         ret[u'playtime'] = playtime
         return json.dumps(ret)
     except Exception, e:
-        print e
+        log.exception(e)
         return json.dumps({"error": str(e)})
 
 
@@ -241,14 +242,14 @@ def playlist():
     try:
         pos = xmms1.xmms.playlist_current_pos()
     except Exception, e:
-        print e
+        log.exception(e)
         pos = {'position': -1}
     try:
         entries = xmms1.xmms.playlist_list_entries()
         pos['playlist'] = [clean(xmms1.xmms.medialib_get_info(entry)) for entry in entries]
         return json.dumps(pos)
     except Exception, e:
-        print e
+        log.exception(e)
         return json.dumps({"error": str(e)})
 
 
@@ -263,7 +264,7 @@ def album(index):
                                'index': album.idx,
                                'tracks': infos})
     except Exception, e:
-        print e
+        log.exception(e)
     return json.dumps({'error': "Haven't loaded %s yet" % (index)})
 
 
@@ -273,7 +274,7 @@ def api_jump(index):
         xmms1.xmms.playlist_set_next(index)
         xmms1.xmms.playback_tickle()
     except Exception, e:
-        print e
+        log.exception(e)
 
 
 @app.route("/api/clear")
@@ -282,7 +283,7 @@ def api_clear():
         xmms1.xmms.playlist_clear()
         return ""
     except Exception, e:
-        print e
+        log.exception(e)
 
 
 @app.route("/api/arthash/<hashval>")
@@ -294,6 +295,45 @@ def api_arthash(hashval):
     return send_file(data)
 
 
+def download_art(album):
+    """
+    All this does is check if there's art in
+    folder, if so it updates the xmms2 medialib
+    """
+    try:
+        mimes = {'.jpg': 'image/jpeg',
+                 '.jpeg': 'image/jpeg',
+                 '.png': 'image/png'}
+        infos = xmms1.infos_for_album(album)
+        if len(infos) == 0:
+            log.debug("No tracks found in album")
+            return None, None
+        if 'url' not in infos[0] or infos[0]['url'] is None:
+            log.debug("no source file url in first track: %s", album.album)
+            return None, None
+        if not infos[0]['url'].startswith('file://'):
+            log.debug("URL is not a file")
+            return None, None
+        url = urllib.unquote_plus(infos[0]['url'][7:])
+        log.debug("URL: %s", url)
+        for f in os.listdir(os.path.dirname(url)):
+            t = os.path.splitext(f)[1].lower()
+            if t in ('.jpg', '.jpeg', '.png'):
+                mime = mimes[t]
+                cover = xmms1.xmms.bindata_add(open(os.path.join(os.path.dirname(url), f)).read())
+                log.debug("Found cover: %s saved as bindata %s / %s", f, cover, mime)
+                break
+        else:
+            return None, None
+        for info in infos:
+            xmms1.xmms.medialib_property_set(info['id'], "picture_front", cover)
+            xmms1.xmms.medialib_property_set(info['id'], "picture_front_mime", mime)
+        return cover, mime
+    except Exception, e:
+        log.exception(e)
+        return None, None
+
+
 @app.route("/api/art/<int:index>")
 def albumart(index):
     try:
@@ -302,12 +342,14 @@ def albumart(index):
             raise ValueError("index out of range: %s" % (index))
         album = xmms2.albums[index]
         if not album.picture:
-            raise ValueError("album has no art: %s %s" % (index, album.album.encode('utf-8')))
+            album.picture, album.mime = download_art(album)
+            if not album.picture:
+                raise ValueError("album has no art: %s %s" % (index, album.album.encode('utf-8')))
         data = os.path.join(BINDATA, album.picture)
         mime = album.mime
         return send_file(data, mimetype=mime)
     except Exception, e:
-        print e
+        log.exception(e)
         data = 'static/none.jpg'
         mime = 'image/jpeg'
         return send_file(data, mimetype=mime)
