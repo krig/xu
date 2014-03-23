@@ -51,9 +51,8 @@ $(function() {
                 $("#nowplaying").html('<i class="' + statuscls + '"></i> ' + song);
                 $("progress").val(np.playtime / np.duration * 100);
             }
-            if (nowPlaying != null && 'picture_front' in np) {
+            if ($('.current_art').get(0) == undefined) {
                 $('.current_art').html("<img src='/api/arthash/" + np.picture_front + "'>");
-                ;
             }
             if (wasPlaying != nowPlaying) {
                 rebuildPlaylist();
