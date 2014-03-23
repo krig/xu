@@ -1,3 +1,15 @@
+function playAlbum(index) {
+    $.get("/api/play/" + index, function() {
+        $("#overlay").html('<div style="font-size: 32px">Playing...</div>');
+    });
+}
+
+function enqueueAlbum(index) {
+    $.get("/api/enqueue/" + index, function() {
+        $("#overlay").html('<div style="font-size: 32px">Enqueued!</div>');
+    });
+}
+
 $(function() {
     function showAlbum(album) {
         if ("error" in album) {
@@ -16,8 +28,8 @@ $(function() {
 
     function handleAlbum(album) {
         $("#overlay").html(
-            '&nbsp;<a href="javascript:;" onclick="$.get(\'/api/play/' + album.index + '\')"><i class="fa fa-5x fa-play"></i></a>').append(
-                '&nbsp;<a href="javascript:;" onclick="$.get(\'/api/enqueue/' + album.index + '\')"><i class="fa fa-5x fa-plus"></i></a>');
+            '&nbsp;<a href="javascript:;" onclick="playAlbum(' + album.index + ');"><i class="fa fa-5x fa-play"></i></a>').append(
+                '&nbsp;<a href="javascript:;" onclick="enqueueAlbum(' + album.index + ');"><i class="fa fa-5x fa-plus"></i></a>');
     }
 
     function playAlbum(album) {
