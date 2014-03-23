@@ -10,7 +10,7 @@ function rebuildPlaylist() {
         var lst = $(".playlist_view ol");
         var curr = pl.position;
         $.each(pl.playlist, function(i, entry) {
-            var song = "<a href='#'>" + escapeHtml(getPerformer(entry) + ' - ' + entry.title) + "</a>";
+            var song = "<a href='javascript:;'>" + escapeHtml(getPerformer(entry) + ' - ' + entry.title) + "</a>";
             if ((i % 2) == 0 && curr == i) {
                 lst.append('<li class="odd current_track" data-index=' + i + '>' + song + '</li>');
             } else if (curr == i) {
