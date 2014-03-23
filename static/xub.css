@@ -75,7 +75,7 @@ margin: 0px;
     display: inline;
     float: left;
     height: 32px;
-    line-height: 32px;
+    line-height: 40px;
 }
 
 #info {
@@ -126,6 +126,9 @@ padding-right: 1em;
 }
 
 .playlist_view {
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
     line-height: 1.6em;
 }
 
