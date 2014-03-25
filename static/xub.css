@@ -172,7 +172,7 @@ li {
 
 .current_art img {
     max-width: 90%;
-    -webkit-box-reflect: below 5px -webkit-linear-gradient(bottom, rgba(255,255,255,0.3) 0%, transparent 26%, transparent 100%);
+    -webkit-box-reflect: below 5px -webkit-linear-gradient(bottom, rgba(255,255,255,0.3) 0%, transparent 33%, transparent 100%);
 }
 
 #info {
