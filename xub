@@ -62,8 +62,7 @@ class Xmms1(object):
                     xc.Match(xc.Universe(),
                              field="album", value=album.album))
                 log.debug("album: %s: %s", album, ids)
-                for track in ids:
-                    self.xmms.playlist_add_id(track)
+                self.xmms.playlist_add_collection(xc.IDList(ids))
             except Exception, e:
                 log.exception(e)
 
@@ -79,8 +78,7 @@ class Xmms1(object):
                              field="album", value=album.album))
                 print "album:", album, ":", ids
                 self.xmms.playlist_clear()
-                for track in ids:
-                    self.xmms.playlist_add_id(track)
+                self.xmms.playlist_add_collection(xc.IDList(ids))
                 self.xmms.playback_stop()
                 self.xmms.playlist_set_next(0)
                 self.xmms.playback_start()
