@@ -51,37 +51,22 @@ class Xmms1(object):
         self.xmms.connect(os.getenv("XMMS_PATH"))
         self.albums = xmms2.albums
 
-    def enqueue_album(self, index):
-        log.debug("index: %s", index)
-        log.debug("albums: %s", len(self.albums))
-        if int(index) < len(self.albums):
-            try:
-                album = self.albums[index]
-                log.debug("album name: %s", album.album)
-                ids = self.xmms.coll_query_ids(
-                    xc.Match(xc.Universe(),
-                             field="album", value=album.album))
-                log.debug("album: %s: %s", album, ids)
-                self.xmms.playlist_add_collection(xc.IDList(ids))
-            except Exception, e:
-                log.exception(e)
-
-    def play_album(self, index):
+    def play_album(self, index, enqueue=False):
         print "index:", index
         print "albums:", len(self.albums)
         if int(index) < len(self.albums):
             try:
                 album = self.albums[index]
-                print "album name:", album.album
                 ids = self.xmms.coll_query_ids(
                     xc.Match(xc.Universe(),
                              field="album", value=album.album))
-                print "album:", album, ":", ids
-                self.xmms.playlist_clear()
+                if not enqueue:
+                    self.xmms.playlist_clear()
                 self.xmms.playlist_add_collection(xc.IDList(ids))
-                self.xmms.playback_stop()
-                self.xmms.playlist_set_next(0)
-                self.xmms.playback_start()
+                if not enqueue:
+                    self.xmms.playback_stop()
+                    self.xmms.playlist_set_next(0)
+                    self.xmms.playback_start()
             except Exception, e:
                 log.exception(e)
 
@@ -179,7 +164,7 @@ def playlist_page():
 
 @app.route("/api/enqueue/<int:albumidx>")
 def enqueue(albumidx):
-    xmms1.enqueue_album(albumidx)
+    xmms1.play_album(albumidx, enqueue=True)
     return ""
 
 
