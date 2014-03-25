@@ -268,11 +268,23 @@ def album(index):
     return json.dumps({'error': "Haven't loaded %s yet" % (index)})
 
 
+@app.route("/api/playlist-move/<int:f>/<int:t>")
+def api_playlistmove(f, t):
+    try:
+        xmms1.xmms.playlist_move(f, t)
+        return ""
+    except Exception, e:
+        log.exception(e)
+
+
 @app.route("/api/jump/<int:index>")
 def api_jump(index):
     try:
         xmms1.xmms.playlist_set_next(index)
+        if xmms1.xmms.playback_status() != 1:
+            xmms1.xmms.playback_start()
         xmms1.xmms.playback_tickle()
+        return ""
     except Exception, e:
         log.exception(e)
 

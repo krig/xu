@@ -22,6 +22,14 @@ function rebuildPlaylist() {
             }
         });
 
+        $('ol').sortable({
+            start: function(event, ui) {
+                ui.item.data('start_pos', ui.item.index());
+            },
+            stop: function(event, ui) {
+                $.get('/api/playlist-move/' + ui.item.data('start_pos') + '/' + ui.item.index());
+            }
+        });
         $('li').dblclick(function() {
             $.get('/api/jump/' + $(this).attr('data-index'));
         });

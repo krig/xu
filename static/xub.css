@@ -168,7 +168,7 @@ li {
 
 .current_art {
     text-align: center;
-    padding: 16px;
+    padding-top: 1.3em;
 }
 
 .current_art img {
@@ -255,8 +255,15 @@ progress[aria-valuenow]:before  {
 }
 
 @media screen and (min-width: 500px) {
+
     progress, progress[role] {
         width: 200px;
+    }
+}
+
+@media screen and (min-width: 600px) {
+    .current_art img {
+        max-width: 540px;
     }
 }
 
@@ -288,4 +295,14 @@ progress[aria-valuenow]:before  {
     progress, progress[role] {
         width: 950px;
     }
+}
+
+*[draggable=true] {
+  -moz-user-select:none;
+  -khtml-user-drag: element;
+  cursor: move;
+}
+
+*:-khtml-drag {
+  background-color: rgba(238,238,238, 0.5);
 }
