@@ -51,13 +51,18 @@ $(function() {
                 nowPlaying = np.id;
                 var song = '<em>' + escapeHtml(getPerformer(np)) + ' - ' + escapeHtml(np.title) + '</em>';
                 var statuscls = "fa fa-stop";
+                var pbtn = 'fa fa-2x fa-stop fa-fw';
                 if (np.status == 1) {
                     statuscls = "fa fa-music";
+                    pbtn = 'fa fa-2x fa-pause fa-fw';
                 } else if (np.status == 2) {
                     statuscls = "fa fa-pause";
+                    pbtn = 'fa fa-2x fa-play fa-fw';
                 }
                 $("#nowplaying").html('<i class="' + statuscls + '"></i> ' + song);
                 $("progress").val(np.playtime / np.duration * 100);
+
+                $("#pausebutton").html('<i class="' + pbtn + '"></i>');
             }
             if ($('.current_art').get(0) == undefined) {
                 $('.current_art').html("<img src='/api/arthash/" + np.picture_front + "'>");

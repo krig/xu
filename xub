@@ -9,6 +9,7 @@ The backend connects to xmms2 both to find music and to play music.
 """
 
 import os
+import logging
 import re
 import urllib
 import json
@@ -20,9 +21,13 @@ app = Flask(__name__)
 app.config.from_object(__name__)
 
 BINDATA = os.path.expanduser('~/.config/xmms2/bindata')
+LOGFILE = os.path.expanduser('~/.cache/xmms2/xub.log')
 FIELDS = ["artist", "compilation", "album", "picture_front", 'picture_front_mime']
 
-log = app.logger
+logging.basicConfig(filename=LOGFILE, filemode='w', level=logging.DEBUG,
+                    format='%(asctime)s %(levelname)s: %(message)s', datefmt='%H:%M:%S')
+
+log = logging.getLogger(__name__)
 
 
 class Album(object):
@@ -84,17 +89,24 @@ class Xmms2(Thread):
         self.xmms = xm.XMMS("xub0")
         self.albums = []
 
+    def _new_album(self, album):
+        if 'album' in album and album['album'] is not None:
+            log.debug("New album: %s", album)
+            album_obj = Album(len(self.albums),
+                              album['album'],
+                              album['picture_front'],
+                              album['picture_front_mime'])
+            self.albums.append(album_obj)
+        else:
+            log.error("Broken album: %s" % (repr(album)))
+
     def on_albumlist(self, albums_data):
         if albums_data.is_error():
             log.error("XMMS2 error: %s", albums_data.get_error())
             return
         albums = sorted(albums_data.value(), key=lambda a: a.get('artist') or a.get('compilation'))
         for album in albums:
-            album_obj = Album(len(self.albums),
-                              album['album'],
-                              album['picture_front'],
-                              album['picture_front_mime'])
-            self.albums.append(album_obj)
+            self._new_album(album)
 
     def on_albumlist_changed(self, albums_data):
         if albums_data.is_error():
@@ -107,12 +119,7 @@ class Xmms2(Thread):
                     album2.mime = album['picture_front_mime']
                     break
             else:
-                log.debug("New album: %s", album)
-                album_obj = Album(len(self.albums),
-                                  album['album'],
-                                  album['picture_front'],
-                                  album['picture_front_mime'])
-                self.albums.append(album_obj)
+                self._new_album(album)
 
     def on_added(self, album_data):
         if album_data.is_error():
@@ -190,6 +197,16 @@ def code(v):
 
 def clean(mediainfo):
     return dict((code(key[1]), code(value)) for key, value in mediainfo.iteritems())
+
+
+@app.route("/api/query/<query>")
+def api_query(query):
+    try:
+        results = []
+        return json.dumps(ret)
+    except Exception, e:
+        log.exception(e)
+        return json.dumps({"error": str(e)})
 
 
 @app.route("/api/current")
@@ -309,7 +326,7 @@ def download_art(album):
         if not infos[0]['url'].startswith('file://'):
             log.debug("URL is not a file")
             return None, None
-        url = urllib.unquote_plus(infos[0]['url'][7:])
+        url = urllib.unquote_plus(infos[0]['url'][7:].encode('utf-8'))
         log.debug("URL: %s", url)
         for f in os.listdir(os.path.dirname(url)):
             t = os.path.splitext(f)[1].lower()
