@@ -1,3 +1,17 @@
+function positionArt() {
+    if ($(window).height() - $(".playlist_view").height() < 400) {
+        var img_width = ((($(window).width() - $(".playlist_view").width()) * 0.5) - 32);
+        $("#current_art_img").css('position', 'fixed').css('right', '32px').css('top', '64px');
+        if (img_width >= 64) {
+            $("#current_art_img").css('width', img_width + 'px').css('max-width', '');
+        } else {
+            $("#current_art_img").css('position', 'static').css('width', '').css('max-width', '90%');
+        }
+    } else if ($(window).width() >= 600) {
+        $("#current_art_img").css('position', 'static').css('width', '').css('max-width', '540px');
+    }
+}
+
 function rebuildPlaylist() {
     $.getJSON("/api/playlist", function(pl) {
         if ("error" in pl) {
@@ -33,6 +47,8 @@ function rebuildPlaylist() {
         $('li').dblclick(function() {
             $.get('/api/jump/' + $(this).attr('data-index'));
         });
+
+        positionArt();
     });
 }
 
@@ -65,19 +81,19 @@ $(function() {
                 $("#pausebutton").html('<i class="' + pbtn + '"></i>');
             }
             if ($('.current_art').get(0) == undefined) {
-                $('.current_art').html("<img src='/api/arthash/" + np.picture_front + "'>");
+                $('.current_art').html("<img id='current_art_img' src='/api/arthash/" + np.picture_front + "'>");
             }
             if (wasPlaying != nowPlaying) {
                 rebuildPlaylist();
 
                 if (nowPlaying != null) {
                     if ("picture_front" in np) {
-                        $('.current_art').html("<img src='/api/arthash/" + np.picture_front + "'>");
+                        $('.current_art').html("<img id='current_art_img' src='/api/arthash/" + np.picture_front + "'>");
                     } else {
-                        $('.current_art').html("<img src='/api/arthash/null'>");
+                        $('.current_art').html("<img id='current_art_img' src='/api/arthash/null'>");
                     }
                 } else {
-                    $('.current_art').html("<img src='/api/arthash/null'>");
+                    $('.current_art').html("<img id='current_art_img' src='/api/arthash/null'>");
                 }
             }
         });
@@ -85,4 +101,5 @@ $(function() {
     updateNowPlaying();
     setInterval(updateNowPlaying, 1000);
 
+    $(window).resize(positionArt);
 });

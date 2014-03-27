@@ -260,12 +260,6 @@ progress[aria-valuenow]:before  {
     }
 }
 
-@media screen and (min-width: 600px) {
-    .current_art img {
-        max-width: 540px;
-    }
-}
-
 @media screen and (min-width: 700px) {
     progress, progress[role] {
         width: 350px;
@@ -293,16 +287,6 @@ progress[aria-valuenow]:before  {
 @media screen and (min-width: 1500px) {
     progress, progress[role] {
         width: 950px;
-    }
-
-    .current_art {
-        position: fixed;
-        right: 32px;
-        top: 64px;
-    }
-
-    .current_art img {
-        max-width: 420px;
     }
 }
 
