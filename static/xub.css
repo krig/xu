@@ -111,6 +111,7 @@ overflow: hidden;
     line-height: 150px;
     width: 150px;
     height: 150px;
+    z-index: 8;
 }
 
 .wrap {
@@ -179,6 +180,43 @@ li {
     display: inline-block;
     text-align: center;
     margin: 0 auto;
+}
+
+#search {
+    display: none;
+    position: fixed;
+    top: 32px;
+    left: 32px;
+    height: 32px;
+    color: #ecf0f1;
+    background: #222222;
+    z-index: 10;
+    overflow: hidden;
+}
+
+fieldset {
+    padding: 0px;
+    margin: 0px;
+    border: none;
+}
+
+#searchform input[type="text"], #searchform textarea {
+    font-size: 13px;
+    padding: 0px;
+    border: 4px solid #222;
+    height: 24px;
+    width: 256px;
+}
+
+#searchform input[type="submit"] {
+    width: 80px;
+}
+
+#searchwhat {
+   background: transparent;
+   color: #e74c3c;
+   border: 0;
+   border-radius: 0;
 }
 
 progress,          /* All HTML5 progress enabled browsers */

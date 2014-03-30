@@ -16,7 +16,7 @@ import json
 import xmmsclient as xm
 import xmmsclient.collections as xc
 from threading import Thread
-from flask import Flask, render_template, send_file
+from flask import Flask, render_template, send_file, request
 app = Flask(__name__)
 app.config.from_object(__name__)
 
@@ -38,10 +38,11 @@ class Album(object):
     picture
     mime
     """
-    __slots__ = ('idx', 'album', 'picture', 'mime')
+    __slots__ = ('idx', 'artist', 'album', 'picture', 'mime')
 
-    def __init__(self, idx, album, pic, mime):
+    def __init__(self, idx, artist, album, pic, mime):
         self.idx = idx
+        self.artist = artist
         self.album = album
         self.picture = pic
         self.mime = mime
@@ -80,7 +81,7 @@ class Xmms1(object):
             xc.Match(xc.Universe(),
                      field="album",
                      value=album.album),
-            ["artist", "collection", "album", "tracknr", "id", "url"])
+            ["artist", "compilation", "album", "tracknr", "id", "url"])
 
 
 class Xmms2(Thread):
@@ -93,7 +94,8 @@ class Xmms2(Thread):
         if 'album' in album and album['album'] is not None:
             log.debug("New album: %s", album)
             album_obj = Album(len(self.albums),
-                              album['album'],
+                              album['artist'] or album['compilation'],
+                              album['album'] or album['compilation'],
                               album['picture_front'],
                               album['picture_front_mime'])
             self.albums.append(album_obj)
@@ -158,8 +160,16 @@ xmms1 = Xmms1(xmms2)
 
 @app.route("/")
 def albums():
+    query = request.args.get('s', 'all albums')
     return render_template("index.html",
-                           title="xub :: albums",
+                           title="xub :: %s" % (query),
+                           albums=xmms2.albums)
+
+
+@app.route("/query/<query>")
+def page_query(query):
+    return render_template("index.html",
+                           title="xub :: " + query,
                            albums=xmms2.albums)
 
 
@@ -186,7 +196,15 @@ def fonts(font):
     "route as staticish"
     if '/' in font or '..' in font:
         return ""
-    return send_file(os.path.join("fonts", font), mimetype='application/binary')
+    mimes = {
+        '.woff': 'application/x-font-woff',
+        '.ttf': 'font/truetype',
+        '.otf': 'font/opentype',
+        '.svg': 'image/svg+xml',
+        '.eot': 'application/vnd.ms-fontobject'
+    }
+    mime = mimes.get(os.path.splitext(font)[1].lower(), 'application/binary')
+    return send_file(os.path.join("fonts", font), mimetype=mime)
 
 
 def code(v):
@@ -199,11 +217,23 @@ def clean(mediainfo):
     return dict((code(key[1]), code(value)) for key, value in mediainfo.iteritems())
 
 
-@app.route("/api/query/<query>")
-def api_query(query):
+@app.route("/api/query/artists/<query>")
+def api_query_artists(query):
     try:
-        results = []
-        return json.dumps(ret)
+        query = query.lower()
+        results = [album.idx for album in xmms2.albums if query in album.artist.lower()]
+        return json.dumps({"result": results})
+    except Exception, e:
+        log.exception(e)
+        return json.dumps({"error": str(e)})
+
+
+@app.route("/api/query/albums/<query>")
+def api_query_albums(query):
+    try:
+        query = query.lower()
+        results = [album.idx for album in xmms2.albums if query in album.album.lower()]
+        return json.dumps({"result": results})
     except Exception, e:
         log.exception(e)
         return json.dumps({"error": str(e)})
@@ -287,6 +317,11 @@ def api_jump(index):
         return ""
     except Exception, e:
         log.exception(e)
+
+
+@app.route("/api/num_albums")
+def num_albums():
+    return json.dumps({"num_albums": len(xmms2.albums)})
 
 
 @app.route("/api/clear")

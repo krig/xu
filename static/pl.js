@@ -63,6 +63,7 @@ $(function() {
             if ('error' in np) {
                 nowPlaying = null;
                 $("#nowplaying").html('<i class="fa fa-stop"></i>');
+                $("#pausebutton").html('<i class="fa fa-2x fa-stop fa-fw"></i>');
             } else {
                 nowPlaying = np.id;
                 var song = '<em>' + escapeHtml(getPerformer(np)) + ' - ' + escapeHtml(np.title) + '</em>';
