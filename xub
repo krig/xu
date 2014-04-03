@@ -16,7 +16,7 @@ import json
 import xmmsclient as xm
 import xmmsclient.collections as xc
 from threading import Thread
-from flask import Flask, render_template, send_file, request
+from flask import Flask, render_template, send_file, request, redirect
 app = Flask(__name__)
 app.config.from_object(__name__)
 
@@ -52,10 +52,10 @@ class Album(object):
 
 
 class Xmms1(object):
-    def __init__(self, xmms2):
+    def __init__(self, albums):
         self.xmms = xm.XMMSSync("xub1")
         self.xmms.connect(os.getenv("XMMS_PATH"))
-        self.albums = xmms2.albums
+        self.albums = albums
 
     def play_album(self, index, enqueue=False):
         print "index:", index
@@ -155,7 +155,7 @@ class Xmms2(Thread):
 
 
 xmms2 = Xmms2()
-xmms1 = Xmms1(xmms2)
+xmms1 = Xmms1(xmms2.albums)
 
 
 @app.route("/")
@@ -315,6 +315,19 @@ def api_jump(index):
             xmms1.xmms.playback_start()
         xmms1.xmms.playback_tickle()
         return ""
+    except Exception, e:
+        log.exception(e)
+
+
+@app.route("/restart")
+def api_restart():
+    global xmms2
+    try:
+        xmms2.xmms.exit_loop()
+        xmms2 = Xmms2()
+        xmms2.start()
+        xmms1.albums = xmms2.albums
+        return redirect("/", code=302)
     except Exception, e:
         log.exception(e)
 
