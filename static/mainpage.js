@@ -49,6 +49,7 @@ $(function() {
             if ('error' in np) {
                 $("#nowplaying").html('<i class="fa fa-stop"></i>');
                 $("#pausebutton").html('<i class="fa fa-2x fa-stop fa-fw"></i>');
+                document.title = "XUB (Not playing)";
             } else {
                 var song = '<em>' + escapeHtml(getPerformer(np)) + ' - ' + escapeHtml(np.title) + '</em>';
                 var statuscls = "fa fa-stop";
@@ -63,6 +64,8 @@ $(function() {
                 $("#nowplaying").html('<i class="' + statuscls + '"></i> ' + song);
                 $("progress").val(np.playtime / np.duration * 100);
                 $("#pausebutton").html('<i class="' + pbtn + '"></i>');
+
+                document.title = escapeHtml(np.title) + " (" + Math.round(np.playtime / np.duration * 100) + "%)";
             }
         });
     }
