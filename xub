@@ -219,9 +219,13 @@ def clean(mediainfo):
 
 @app.route("/api/query/artists/<query>")
 def api_query_artists(query):
+    def qartist(album):
+        if album.artist is None:
+            return "unknown artist"
+        return album.artist.lower()
     try:
         query = query.lower()
-        results = [album.idx for album in xmms2.albums if query in album.artist.lower()]
+        results = [album.idx for album in xmms2.albums if query in qartist(album)]
         return json.dumps({"result": results})
     except Exception, e:
         log.exception(e)
@@ -230,9 +234,13 @@ def api_query_artists(query):
 
 @app.route("/api/query/albums/<query>")
 def api_query_albums(query):
+    def qalbum(album):
+        if album.album is None:
+            return "unknown album"
+        return album.album.lower()
     try:
         query = query.lower()
-        results = [album.idx for album in xmms2.albums if query in album.album.lower()]
+        results = [album.idx for album in xmms2.albums if query in qalbum(album)]
         return json.dumps({"result": results})
     except Exception, e:
         log.exception(e)
