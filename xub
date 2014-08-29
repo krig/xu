@@ -22,7 +22,7 @@ app.config.from_object(__name__)
 
 BINDATA = os.path.expanduser('~/.config/xmms2/bindata')
 LOGFILE = os.path.expanduser('~/.cache/xmms2/xub.log')
-FIELDS = ["artist", "compilation", "album", "picture_front", 'picture_front_mime']
+FIELDS = ["artist", "compilation", "album", "picture_front", 'picture_front_mime', 'lmod']
 
 logging.basicConfig(filename=LOGFILE, filemode='w', level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s: %(message)s', datefmt='%H:%M:%S')
@@ -37,15 +37,17 @@ class Album(object):
     album
     picture
     mime
+    lmod
     """
-    __slots__ = ('idx', 'artist', 'album', 'picture', 'mime')
+    __slots__ = ('idx', 'artist', 'album', 'picture', 'mime', 'lmod')
 
-    def __init__(self, idx, artist, album, pic, mime):
+    def __init__(self, idx, artist, album, pic, mime, lmod):
         self.idx = idx
         self.artist = artist
         self.album = album
         self.picture = pic
         self.mime = mime
+        self.lmod = lmod
 
     def __str__(self):
         return self.album.encode('utf-8')
@@ -97,7 +99,8 @@ class Xmms2(Thread):
                               album['artist'] or album['compilation'],
                               album['album'] or album['compilation'],
                               album['picture_front'],
-                              album['picture_front_mime'])
+                              album['picture_front_mime'],
+                              album['lmod'] or 0)
             self.albums.append(album_obj)
         else:
             log.error("Broken album: %s" % (repr(album)))
@@ -119,6 +122,7 @@ class Xmms2(Thread):
                 if album2.album == album['album']:
                     album2.picture = album['picture_front']
                     album2.mime = album['picture_front_mime']
+                    album2.lmod = album['lmod']
                     break
             else:
                 self._new_album(album)
@@ -162,21 +166,21 @@ xmms1 = Xmms1(xmms2.albums)
 def albums():
     query = request.args.get('s', 'all albums')
     return render_template("index.html",
-                           title="xub :: %s" % (query),
+                           title="XUB: %s" % (query),
                            albums=xmms2.albums)
 
 
 @app.route("/query/<query>")
 def page_query(query):
     return render_template("index.html",
-                           title="xub :: " + query,
+                           title="XUB: " + query,
                            albums=xmms2.albums)
 
 
 @app.route("/playlist")
 def playlist_page():
     return render_template("playlist.html",
-                           title="xub :: playlist")
+                           title="XUB: playlist")
 
 
 @app.route("/api/enqueue/<int:albumidx>")
@@ -241,6 +245,28 @@ def api_query_albums(query):
     try:
         query = query.lower()
         results = [album.idx for album in xmms2.albums if query in qalbum(album)]
+        return json.dumps({"result": results})
+    except Exception, e:
+        log.exception(e)
+        return json.dumps({"error": str(e)})
+
+
+# return all albums sorted by album name
+@app.route("/api/query/by_album")
+def api_query_by_album():
+    try:
+        results = [album.idx for album in sorted(xmms2.albums, key=lambda a: a.album)]
+        return json.dumps({"result": results})
+    except Exception, e:
+        log.exception(e)
+        return json.dumps({"error": str(e)})
+
+
+# return all albums sorted by lmod
+@app.route("/api/query/by_lmod")
+def api_query_by_lmod():
+    try:
+        results = [album.idx for album in sorted(xmms2.albums, key=lambda a: a.lmod, reverse=True)]
         return json.dumps({"result": results})
     except Exception, e:
         log.exception(e)

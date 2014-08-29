@@ -64,6 +64,7 @@ $(function() {
                 nowPlaying = null;
                 $("#nowplaying").html('<i class="fa fa-stop"></i>');
                 $("#pausebutton").html('<i class="fa fa-2x fa-stop fa-fw"></i>');
+                document.title = "XUB: Not playing";
             } else {
                 nowPlaying = np.id;
                 var song = '<em>' + escapeHtml(getPerformer(np)) + ' - ' + escapeHtml(np.title) + '</em>';
@@ -78,8 +79,9 @@ $(function() {
                 }
                 $("#nowplaying").html('<i class="' + statuscls + '"></i> ' + song);
                 $("progress").val(np.playtime / np.duration * 100);
-
                 $("#pausebutton").html('<i class="' + pbtn + '"></i>');
+
+                document.title = "XUB: " + escapeHtml(np.title) + " (" + Math.round(np.playtime / np.duration * 100) + "%)";
             }
             if ($('.current_art').get(0) == undefined) {
                 $('.current_art').html("<img id='current_art_img' src='/api/arthash/" + np.picture_front + "'>");

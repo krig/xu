@@ -49,7 +49,7 @@ $(function() {
             if ('error' in np) {
                 $("#nowplaying").html('<i class="fa fa-stop"></i>');
                 $("#pausebutton").html('<i class="fa fa-2x fa-stop fa-fw"></i>');
-                document.title = "XUB (Not playing)";
+                document.title = "XUB: Not playing";
             } else {
                 var song = '<em>' + escapeHtml(getPerformer(np)) + ' - ' + escapeHtml(np.title) + '</em>';
                 var statuscls = "fa fa-stop";
@@ -65,7 +65,7 @@ $(function() {
                 $("progress").val(np.playtime / np.duration * 100);
                 $("#pausebutton").html('<i class="' + pbtn + '"></i>');
 
-                document.title = escapeHtml(np.title) + " (" + Math.round(np.playtime / np.duration * 100) + "%)";
+                document.title = "XUB: " + escapeHtml(np.title) + " (" + Math.round(np.playtime / np.duration * 100) + "%)";
             }
         });
     }
@@ -122,13 +122,29 @@ $(function() {
         var whatenc = encodeURIComponent(what);
         var qenc = encodeURIComponent(query);
 
-        if (trim(query) == "") {
+        if (trim(what) == "byalbum") {
             if (replace == "replace") {
-                history.replaceState({"what": what, "s": query}, "xub :: albums", "/");
+                history.replaceState({"what": what, "s": query}, "xub :: albums by album", "/?what=byalbum");
             } else if (replace == "push") {
-                history.pushState({"what": what, "s": query}, "xub :: albums", "/");
+                history.pushState({"what": what, "s": query}, "xub :: albums by album", "/?what=byalbum");
+            }
+            $.getJSON("/api/query/by_album", handleQueryResult);
+        } else if (trim(what) == "newest") {
+            if (replace == "replace") {
+                history.replaceState({"what": what, "s": query}, "xub :: albums by lmod", "/?what=newest");
+            } else if (replace == "push") {
+                history.pushState({"what": what, "s": query}, "xub :: albums by lmod", "/?what=newest");
+            }
+            $.getJSON("/api/query/by_lmod", handleQueryResult);
+        } else if (trim(what) == "byartist") {
+            if (replace == "replace") {
+                history.replaceState({"what": what, "s": query}, "xub :: albums", "/?what=byartist");
+            } else if (replace == "push") {
+                history.pushState({"what": what, "s": query}, "xub :: albums", "/?what=byartist");
             }
             $.getJSON("/api/num_albums", handleQueryAllAlbums);
+        } else if (trim(query) == "") {
+            queryDo("newest", "", replace);
         } else {
             if (replace == "replace") {
                 history.replaceState({"what": what, "s": query}, "xub :: " + query, "/?s=" + qenc + "&what=" + whatenc);

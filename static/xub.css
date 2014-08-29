@@ -94,6 +94,10 @@ overflow: hidden;
     line-height: 40px;
 }
 
+.text-sort {
+    color: #00ff00;
+}
+
 #nowplaying {
     float: right;
     vertical-align: middle;
