@@ -3,9 +3,6 @@
 # xu
 
 
-import xmmsclient
-import xmmsclient.glib
-import xmmsclient.collections as coll
 import sys
 import os
 import urwid
@@ -13,6 +10,9 @@ import urwid.raw_display
 import logging as log
 import subprocess
 import shlex
+import xmmsclient
+import xmmsclient.glib
+import xmmsclient.collections as coll
 
 from urwid import AttrMap, ListBox, Frame, Edit
 from urwid import Text, Padding, WidgetWrap, Columns, SimpleFocusListWalker

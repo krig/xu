@@ -109,8 +109,7 @@ class Xmms2(Thread):
         if albums_data.is_error():
             log.error("XMMS2 error: %s", albums_data.get_error())
             return
-        albums = sorted(albums_data.value(), key=lambda a: a.get('artist') or a.get('compilation'))
-        for album in albums:
+        for album in albums_data.value():
             self._new_album(album)
 
     def on_albumlist_changed(self, albums_data):
@@ -154,6 +153,7 @@ class Xmms2(Thread):
         self.xmms.coll_query_infos(xc.Universe(),
                                    fields=FIELDS,
                                    groupby=["album"],
+                                   order=["artist", "compilation"],
                                    cb=self.on_albumlist)
         self.xmms.loop()
 
