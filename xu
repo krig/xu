@@ -32,12 +32,19 @@ else:
 XmmsError = xmmsclient.sync.XMMSError
 
 
-#from gobject import io_add_watch, IO_OUT, IO_IN, source_remove
 from gi.repository import GObject
-#gobject import io_add_watch, IO_OUT, IO_IN, source_remove
 
 
 class GLibConnector:
+    """
+     A GLib connector for PyGTK -
+        to use with your cool PyGTK xmms2 client.
+     Tobias Rundstrom <tru@xmms.org>
+     Raphaël Bois <virtualdust@gmail.com>
+
+     Just create the GLibConnector() class with a xmmsclient as argument
+
+    """
     def __init__(self, xmms):
         self.in_id = None
         self.out_id = None
